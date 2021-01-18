@@ -59,8 +59,69 @@ struct deserializer {
 
 } //namespace policy
 
-struct measurement{
-    struct data {};
+struct measurement : policy::deserializer{
+    struct metadata {
+        int channel_count;
+    };
+    struct event_data {
+        int event_id;
+        double epoch_time;
+        struct date_t{ 
+            int year;
+            int month;
+            int day;
+        } date;  
+        struct time_t{
+            int hour;
+            int minute;
+            int second;
+            int millisecond;
+        } time;
+        int tdc;
+        int channel_count;
+    };
+    struct data {
+        int channel_id;
+        int event_id;
+        float baseline;
+        float amplitude;
+        float charge;
+        float leading_edge;
+        float trailing_edge;
+        float rate_counter;
+    };
+
+    metadata read_metadata(std::ifstream& stream_p){
+        metadata result{};
+        std::string temp;
+        std::getline(stream_p, temp);
+        std::getline(stream_p, temp);
+        std::getline(stream_p, temp);
+        std::getline(stream_p, temp);
+        std::getline(stream_p, temp);
+        return result;
+    }
+    void read_event_header(std::ifstream& stream_p) {
+        event_data e{};
+    read_into( stream_p, make_mapper( e.event_id, e.epoch_time, e.date.year, e.date.month, e.date.day, e.time.hour, e.time.minute, e.time.second, e.time.millisecond, e.tdc, e.channel_count ) );
+        std::cout << e.event_id << " -- " << e.epoch_time << " -- ";
+        std::cout << e.date.year << "-" << e.date.month << "-" << e.date.day << " -- ";
+        std::cout << e.time.hour << "-" << e.time.minute << "-" << e.time.second << "-" << e.time.millisecond << " -- ";
+        std::cout << e.tdc << " -- " << e.channel_count << '\n'; 
+    }
+    data read_data(std::ifstream& stream_p) {
+        data result;
+        read_into( stream_p, 
+                   make_mapper( result.channel_id, 
+                                result.event_id, 
+                                result.baseline, 
+                                result.amplitude, 
+                                result.charge,
+                                result.leading_edge,
+                                result.trailing_edge,
+                                result.rate_counter) );
+        return result;
+    }
 };
 
 
