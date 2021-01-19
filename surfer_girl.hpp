@@ -6,8 +6,14 @@
 
 template<class T>
 struct mapped_element {
-    using type = T;
     T& value;
+    constexpr void read(std::ifstream& stream_p){ stream_p.read( reinterpret_cast<char*>(&value), sizeof(T)); }
+};
+
+template<class T, std::size_t I>
+struct mapped_element< std::array<T, I> > {
+    std::array<T,I>& value;
+    constexpr void read(std::ifstream& stream_p){ stream_p.read( reinterpret_cast<char*>(value.data()), I*sizeof(T)); }
 };
 
 template<class ... Ts>
@@ -15,25 +21,23 @@ struct mapper {
     using tuple_type = std::tuple<mapped_element<Ts>...>;
 
     mapper(mapped_element<Ts>... ts_p) : tuple_m{std::move(ts_p)...} {}
+    constexpr void read(std::ifstream& stream_p){ read_impl<0>( stream_p ); }
 
-    template< std::size_t Index, class F,
+
+private:
+    template< std::size_t Index,
               typename std::enable_if_t< (Index < std::tuple_size<tuple_type>::value), std::nullptr_t > = nullptr >
-    constexpr void apply_for_each_impl(F&& f_p)
+    constexpr void read_impl(std::ifstream& stream_p)
     {
-        f_p( std::get<Index>(tuple_m) );
-        apply_for_each_impl<Index+1>(std::forward<F>(f_p));
+        std::get<Index>(tuple_m).read( stream_p );
+        read_impl<Index+1>( stream_p );
     }
     
-    template< std::size_t Index, class F,
+    template< std::size_t Index,
               typename std::enable_if_t< (Index >= std::tuple_size<tuple_type>::value), std::nullptr_t > = nullptr >
-    constexpr void apply_for_each_impl(F&& /*f_p*/) {}
+    constexpr void read_impl(std::ifstream& /*stream_p*/) {}
 
-    template<class F>
-    constexpr void apply_for_each(F&& f_p)
-    {
-        apply_for_each_impl<0>( std::forward<F>(f_p) );
-    }
-
+   
     private:
     tuple_type tuple_m;
 };
@@ -48,12 +52,7 @@ namespace policy {
 struct deserializer {
    template<class ... Ts>
    constexpr void read_into(std::ifstream& stream_p, mapper<Ts...>&& mapper_p){
-       mapper_p.apply_for_each( 
-           [&stream_p](auto& element_p){
-              using element = typename std::decay<decltype(element_p)>::type;
-              stream_p.read( reinterpret_cast<char*>(&element_p.value), sizeof( typename element::type ) );
-           } 
-       );
+       mapper_p.read( stream_p ); 
    }
 };
 
