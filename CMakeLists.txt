@@ -1,0 +1,27 @@
+cmake_minimum_required(VERSION 3.2)
+
+project(surfer_girl_project VERSION 1.0.0 LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+find_package(ROOT 6.10 CONFIG REQUIRED)
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
+include(RootNewMacros)
+
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib/)
+set(CMAKE_INSTALL_LIBDIR ${CMAKE_BINARY_DIR}/lib/)
+
+root_generate_dictionary( D__surfer_girl writer.hpp LINKDEF linkdef.h)
+
+add_library( converter SHARED D__surfer_girl.cxx )
+target_include_directories( converter PUBLIC "${ROOT_INCLUDE_DIRS}")
+target_link_libraries( converter PUBLIC ROOT::Hist)
+set_target_properties( converter PROPERTIES SUFFIX ".so" )
+
+add_executable( surfer_girl surfer_girl.cpp )
+target_include_directories(surfer_girl PUBLIC "${ROOT_INCLUDE_DIRS}")
+target_link_libraries(surfer_girl PUBLIC ROOT::Core ROOT::Tree ROOT::Hist converter)
+
+set( path_to_lib "${CMAKE_INSTALL_LIBDIR}") 
+configure_file( rootlogon.C ${PROJECT_BINARY_DIR}/${scriptname} @ONLY) 

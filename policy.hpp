@@ -1,8 +1,10 @@
+#ifndef POLICY_HPP
+#define POLICY_HPP
+
 #include <tuple>
+#include <array>
 #include <fstream>
 #include <iostream>
-#include <string>
-#include <vector>
 
 template<class T>
 struct mapped_element {
@@ -47,18 +49,13 @@ auto make_mapper(Ts&... ts_p){
     return mapper<Ts...>{ mapped_element<Ts>{ts_p}... };
 }
 
+template<class ... Ts>
+constexpr void read_into(std::ifstream& stream_p, mapper<Ts...>&& mapper_p){
+   mapper_p.read( stream_p ); 
+}
 
-namespace policy {
-struct deserializer {
-   template<class ... Ts>
-   constexpr void read_into(std::ifstream& stream_p, mapper<Ts...>&& mapper_p){
-       mapper_p.read( stream_p ); 
-   }
-};
 
-} //namespace policy
-
-struct measurement : policy::deserializer{
+struct measurement {
     struct metadata {
         int channel_count;
     };
@@ -102,7 +99,7 @@ struct measurement : policy::deserializer{
     }
     void read_event_header(std::ifstream& stream_p) {
         event_data e{};
-    read_into( stream_p, make_mapper( e.event_id, e.epoch_time, e.date.year, e.date.month, e.date.day, e.time.hour, e.time.minute, e.time.second, e.time.millisecond, e.tdc, e.channel_count ) );
+        read_into( stream_p, make_mapper( e.event_id, e.epoch_time, e.date.year, e.date.month, e.date.day, e.time.hour, e.time.minute, e.time.second, e.time.millisecond, e.tdc, e.channel_count ) );
         std::cout << e.event_id << " -- " << e.epoch_time << " -- ";
         std::cout << e.date.year << "-" << e.date.month << "-" << e.date.day << " -- ";
         std::cout << e.time.hour << "-" << e.time.minute << "-" << e.time.second << "-" << e.time.millisecond << " -- ";
@@ -124,7 +121,7 @@ struct measurement : policy::deserializer{
 };
 
 
-struct waveform : policy::deserializer {
+struct waveform {
     struct metadata {
         int channel_count;
     };
@@ -138,8 +135,8 @@ struct waveform : policy::deserializer {
         float leading_edge;
         float trailing_edge;
         float rate_counter;
-        short value1;
-        short value2;
+        std::array<short, 1024> sample_c;
+        //int end_of_waveform;
     };
     struct event_data {
         int event_id;
@@ -167,7 +164,7 @@ struct waveform : policy::deserializer {
         std::getline(stream_p, temp);
         std::getline(stream_p, temp);
         std::getline(stream_p, temp);
-        
+       //need to retrieve sampling_period and channel_count to fill in metadata 
         return result;
     }
     void read_event_header(std::ifstream& stream_p) {
@@ -183,7 +180,7 @@ struct waveform : policy::deserializer {
                                 e.time.second, 
                                 e.time.millisecond,
                                 e.tdc, 
-                                i,
+                                e.corrected_tdc,
                                 e.channel_count ) );
         std::cout << e.event_id << " -- " << e.epoch_time << " -- ";
         std::cout << e.date.year << "-" << e.date.month << "-" << e.date.day << " -- ";
@@ -202,58 +199,28 @@ struct waveform : policy::deserializer {
                                 result.leading_edge,
                                 result.trailing_edge,
                                 result.rate_counter,
-                                result.waveform) );
+                                result.sample_c) );
+        return result;
+    }
+    data read_data_with_offset(std::ifstream& stream_p) {
+        data result;
+        int i;
+        read_into( stream_p, 
+                   make_mapper( result.channel_id, 
+                                result.event_id, 
+                                result.fcr,
+                                result.baseline, 
+                                result.amplitude, 
+                                result.charge,
+                                result.leading_edge,
+                                result.trailing_edge,
+                                result.rate_counter,
+                                result.sample_c,
+                                i) );
+//        std::cout << i << '\n';
         return result;
     }
 
 };
 
-
-
-
-
-template<class Policy>
-struct reader {
-    using data_t = typename Policy::data;
-    using metadata_t = typename Policy::metadata;
-    
-    reader(std::ifstream&& stream_p) : 
-        stream_m{ std::move(stream_p) }, 
-        end_m{ compute_length() }, 
-        metadata{ Policy{}.read_metadata( stream_m  ) } {}
-
-    std::vector<data_t> read_event() {
-        std::vector<data_t> data_c;
-        data_c.reserve(metadata.channel_count);
-        Policy{}.read_event_header( stream_m );
-        for(auto i{0}; i < metadata.channel_count ; ++i){
-            data_c.push_back( Policy{}.read_data( stream_m ) );
-        }
-        return data_c;
-    } 
-    
-    bool end_is_reached() { 
-        auto current_position = stream_m.tellg();
-        auto distance = end_m - current_position;
-        return distance == 0 ; 
-    }
-
-    private:
-    std::ifstream::pos_type compute_length() {
-        stream_m.seekg(0, std::ios_base::end);
-        auto result = stream_m.tellg();
-        stream_m.seekg(0, std::ios_base::beg);
-        return result;
-    }
-
-    private:
-    std::ifstream stream_m;
-    const std::ifstream::pos_type end_m;
-    public:
-    metadata_t metadata;
-};
-
-template<class Policy>
-auto make_reader(std::ifstream stream_p) {
-    return reader<Policy>{std::move(stream_p)};
-}
+#endif
