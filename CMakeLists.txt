@@ -14,14 +14,14 @@ set(CMAKE_INSTALL_LIBDIR ${CMAKE_BINARY_DIR}/lib/)
 
 root_generate_dictionary( D__surfer_girl writer.hpp LINKDEF linkdef.h)
 
-add_library( converter SHARED D__surfer_girl.cxx )
-target_include_directories( converter PUBLIC "${ROOT_INCLUDE_DIRS}")
-target_link_libraries( converter PUBLIC ROOT::Hist)
-set_target_properties( converter PROPERTIES SUFFIX ".so" )
+add_library( data_format SHARED D__surfer_girl.cxx )
+target_include_directories( data_format PUBLIC "${ROOT_INCLUDE_DIRS}")
+target_link_libraries( data_format PUBLIC ROOT::Hist)
+set_target_properties( data_format PROPERTIES SUFFIX ".so" )
 
 add_executable( surfer_girl surfer_girl.cpp )
 target_include_directories(surfer_girl PUBLIC "${ROOT_INCLUDE_DIRS}")
-target_link_libraries(surfer_girl PUBLIC ROOT::Core ROOT::Tree ROOT::Hist converter)
+target_link_libraries(surfer_girl PUBLIC ROOT::Core ROOT::Tree ROOT::Hist data_format)
 
 set( path_to_lib "${CMAKE_INSTALL_LIBDIR}") 
 configure_file( rootlogon.C ${PROJECT_BINARY_DIR}/${scriptname} @ONLY) 

@@ -1,73 +1,69 @@
 #ifndef WRITER_HPP
 #define WRITER_HPP
 
-#include "policy.hpp"
+#include "data_format.hpp"
 
-#include "TFile.h"
 #include "TTree.h"
-#include "TH1.h"
 
-template< class Policy >
-struct root_converter{};
+namespace sf_g{
 
-template<>
-struct root_converter<waveform> {
-    using input_data_t = typename waveform::data;
-    struct data {
-        int fcr;
-        TH1D waveform;
-    };
-    data operator()(input_data_t& data_p) const {
-        data result{};
-        result.fcr = data_p.fcr;
-        result.waveform = TH1D{ "", ";time;ADC", 1024, 0, 1 };
-        for( auto i{0}; i < 1024 ; ++i ){
-            result.waveform.SetBinContent( i+1, data_p.sample_c[i] );
-        }
-        return result;
-    }
-};
+template<class I, class O> struct writer {};
 
-template<>
-struct root_converter<measurement> {
-    struct data {
-
-    };
-
-};
-
-
-template<class Policy>
-struct writer {
-    using data_t = typename Policy::data;
-    using root_data_t = typename root_converter<Policy>::data;
-
-    writer( int channel_count_p, std::string output_file_p ) : 
+template<class I>
+struct writer< I, TTree >{
+    writer(data_stream<TTree>& tree_p, int channel_count_p  ) : 
         channel_count_m{ static_cast<size_t>( channel_count_p ) }, 
-        ouput_m{ output_file_p.c_str(), "RECREATE" },
-        data_mc{ std::vector<root_data_t>{ channel_count_m } },
-        tree_m{ "data", "converted data from wavecatcher system" } {
+        data_mc{ channel_count_m },
+        tree_mh{ tree_p.stream_h } {
             for( auto i{0}; i < channel_count_m ; ++i) {
                 std::string name = "channel_" + std::to_string(i);
-                tree_m.Branch( name.c_str(), &data_mc[i] ); 
+                tree_mh->Branch( name.c_str(), &data_mc[i] ); 
             } 
         }
 
-    constexpr void write_data( std::vector<data_t> data_pc ) {
+    constexpr void operator()( std::vector<I>&& input_pc ) {
         for( auto i{0} ; i < channel_count_m ; ++i ) {
-           data_mc[i] = root_converter<Policy>{}( data_pc[i] ) ;
+           data_mc[i] = std::move( input_pc[i] ) ;
 //           std::cout << data_mc[i].fcr << '\n';
         }
-        tree_m.Fill();
+        tree_mh->Fill();
     } 
 
-    void save_data() {tree_m.Write();}
-
     private:
-    size_t channel_count_m;
-    TFile ouput_m;
-    std::vector<root_data_t> data_mc;
-    TTree tree_m;
+    size_t const channel_count_m;
+    std::vector<I> data_mc;
+    TTree * tree_mh;
 };
+
+
+template<class ... Is>
+struct writer< multi_input<Is...>, TTree > {
+    writer( data_stream<TTree>& stream_p ) : 
+        tree_mh{ stream_p.stream_h} { 
+        std::size_t index{0};
+        data_mc.apply_for_each(        
+                [this, &index]( auto const& data_p ){ 
+                    std::string name = "channel_" + std::to_string(index++);
+                    tree_mh->Branch( name.c_str(), &data_p ); 
+                    //some glue need to be fully compatible -> i.e. readable via root
+                }
+        ); 
+   }
+
+    constexpr void operator()( multi_output<Is...>&& input_pc ) {
+        data_mc.apply_for_each(        
+                [this, &input_pc]( auto& data_p ){ 
+                    data_p = static_cast<decltype(data_p)>(input_pc);
+                }
+        ); 
+        tree_mh->Fill();
+    } 
+
+private:
+    TTree* tree_mh;
+    multi_input<Is...> data_mc; 
+};
+
+} //namespace sf_g
 
 #endif
