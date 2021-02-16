@@ -23,5 +23,9 @@ add_executable( surfer_girl surfer_girl.cpp )
 target_include_directories(surfer_girl PUBLIC "${ROOT_INCLUDE_DIRS}")
 target_link_libraries(surfer_girl PUBLIC ROOT::Core ROOT::Tree ROOT::Hist data_format)
 
+add_executable( tree_flip tree_flip.cpp )
+target_include_directories(tree_flip PUBLIC "${ROOT_INCLUDE_DIRS}")
+target_link_libraries(tree_flip PUBLIC ROOT::Core ROOT::Tree ROOT::Hist data_format)
+
 set( path_to_lib "${CMAKE_INSTALL_LIBDIR}") 
 configure_file( rootlogon.C ${PROJECT_BINARY_DIR}/${scriptname} @ONLY) 
