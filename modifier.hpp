@@ -40,7 +40,7 @@ struct sub_modifier{
     using tuple_t = std::tuple< Modules... >;
     using output_t = composite< typename Modules::output_t... >;
 
-    sub_modifier(Modules&&... ms_p) : module_mc{ std::make_tuple( std::move( ms_p... ) ) } {}
+    sub_modifier(Modules&&... ms_p) : module_mc{ std::make_tuple( std::move( ms_p )...  ) } {}
     output_t operator()( waveform&& input_p ) const {
         return call( std::move(input_p), std::make_index_sequence<sizeof...(Modules)>{} );
     }
@@ -48,7 +48,7 @@ struct sub_modifier{
     template<std::size_t ... Indices>
     output_t call( waveform&& input_p, std::index_sequence<Indices...> ) const {
         output_t output;
-        int expander[] = { 0, ( static_cast< typename std::tuple_element_t<Indices, tuple_t>::output_t&>( output ) = std::get<Indices>(module_mc)( input_p ), void(), 0 ) ... }; 
+        int expander[] = { 0, ( static_cast< typename std::tuple_element_t<Indices, tuple_t>::output_t&>( output ) = std::get<Indices>(module_mc)( std::move(input_p) ), void(), 0 ) ... }; 
         return output;
     }  
 
@@ -83,8 +83,37 @@ private:
     tuple_t const sub_modifier_mc;
 };
 
-template< class I, class O, class ... Ms>
-modifier<I, O, Ms...> make_modifier( Ms&& ... sub_modifiers_p ) { return {sub_modifiers_p...};}
+template<class ... Ts>
+struct multi_output_deducer{
+    using type = multi_output< typename Ts::output_t...>; 
+};
+
+
+template< class I, class ... Ms, class O = typename multi_output_deducer<Ms...>::type>
+modifier<I, O, Ms...> make_multi_modifier( Ms&& ... sub_modifiers_p ) { return {std::move(sub_modifiers_p)...};}
+
+
+struct amplitude_finder {
+    using output_t = amplitude;
+    output_t operator()( waveform&& input_p ) const {
+        double baseline{0}; 
+        for( auto i{0}; i < 16 ; ++i ) { baseline += input_p.data.GetBinContent( i +1 ); }
+        baseline /= 16;
+        return {baseline - input_p.data.GetMinimum()}; 
+    };
+}; 
+
+struct baseline_finder {
+    using output_t = baseline;
+    output_t operator()( waveform&& input_p ) const {
+        double baseline{0};
+        for( auto i{0}; i < 16 ; ++i ) { baseline += input_p.data.GetBinContent( i +1 ); }
+        baseline /= 16;
+        return {baseline};
+    }
+};
+
+
 
 } //namespace sf_g
 #endif

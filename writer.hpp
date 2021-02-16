@@ -11,13 +11,13 @@ template<class I, class O> struct writer {};
 
 template<class I>
 struct writer< I, TTree >{
-    writer(data_stream<TTree>& tree_p, int channel_count_p  ) : 
+    writer(data_output<TTree>& tree_p, int channel_count_p  ) : 
         channel_count_m{ static_cast<size_t>( channel_count_p ) }, 
         data_mc{ channel_count_m },
-        tree_mh{ tree_p.stream_h } {
+        tree_m{ tree_p.output } {
             for( auto i{0}; i < channel_count_m ; ++i) {
                 std::string name = "channel_" + std::to_string(i);
-                tree_mh->Branch( name.c_str(), &data_mc[i] ); 
+                tree_m.Branch( name.c_str(), &data_mc[i] ); 
             } 
         }
 
@@ -26,25 +26,25 @@ struct writer< I, TTree >{
            data_mc[i] = std::move( input_pc[i] ) ;
 //           std::cout << data_mc[i].fcr << '\n';
         }
-        tree_mh->Fill();
+        tree_m.Fill();
     } 
 
     private:
     size_t const channel_count_m;
     std::vector<I> data_mc;
-    TTree * tree_mh;
+    TTree&  tree_m;
 };
 
 
 template<class ... Is>
 struct writer< multi_input<Is...>, TTree > {
-    writer( data_stream<TTree>& stream_p ) : 
-        tree_mh{ stream_p.stream_h} { 
+    writer( data_output<TTree>& output_p ) : 
+        tree_m{ output_p.output } { 
         std::size_t index{0};
         data_mc.apply_for_each(        
-                [this, &index]( auto const& data_p ){ 
+                [this, &index]( auto& data_p ){ 
                     std::string name = "channel_" + std::to_string(index++);
-                    tree_mh->Branch( name.c_str(), &data_p ); 
+                    tree_m.Branch( name.c_str(), &data_p ); 
                     //some glue need to be fully compatible -> i.e. readable via root
                 }
         ); 
@@ -56,13 +56,27 @@ struct writer< multi_input<Is...>, TTree > {
                     data_p = static_cast<decltype(data_p)>(input_pc);
                 }
         ); 
-        tree_mh->Fill();
+        tree_m.Fill();
     } 
 
 private:
-    TTree* tree_mh;
+    TTree& tree_m;
     multi_input<Is...> data_mc; 
 };
+
+
+
+template<class T> struct multi_input_deducer{};
+template< template< class, class, class...> class M, 
+          class I, 
+          class ... Os, 
+          class ... Ms > 
+struct multi_input_deducer< M< I, multi_output<Os...>, Ms... >> {
+    using type = multi_input<Os...> ;
+};
+
+template< class O, class M, class I = typename multi_input_deducer<M>::type>
+writer<I, O> make_multi_writer( M const&, data_output<TTree>& output_p ) {return {output_p};}
 
 } //namespace sf_g
 

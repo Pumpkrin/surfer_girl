@@ -67,11 +67,11 @@ struct reader< std::ifstream, raw_waveform > {
     using output_t = raw_waveform;
     
     reader( int size_p) : size_m{ static_cast<std::size_t>(size_p)} {}
-    std::vector<output_t> operator()(data_stream<input_t>& input_p) const {
+    std::vector<output_t> operator()(data_input<input_t>& input_p) const {
         std::vector<output_t> result_c{ size_m };
         for( auto& result: result_c ){
             read_into( 
-                input_p.stream,
+                input_p.input,
                 make_mapper( 
                      result.channel_id,
                      result.event_id,
@@ -100,10 +100,10 @@ struct reader< std::ifstream, event_data> {
     using input_t = std::ifstream;
     using output_t = event_data;
     
-    output_t operator()(data_stream<input_t>& input_p) const {
+    output_t operator()(data_input<input_t>& input_p) const {
         output_t result;
         read_into( 
-            input_p.stream,
+            input_p.input,
             make_mapper( 
                 result.event_id,
                 result.epoch_time,
@@ -128,19 +128,54 @@ struct reader< std::ifstream, metadata> {
     using input_t = std::ifstream;
     using output_t = metadata;
     
-    output_t operator()(data_stream<input_t>& input_p) const {
+    output_t operator()(data_input<input_t>& input_p) const {
         output_t result;
         std::string temp;
-        std::getline(input_p.stream, temp);
-        std::getline(input_p.stream, temp);
-        std::getline(input_p.stream, temp);
-        std::getline(input_p.stream, temp);
+        std::getline(input_p.input, temp);
+        std::getline(input_p.input, temp);
+        std::getline(input_p.input, temp);
+        std::getline(input_p.input, temp);
         std::size_t metadata_offset = temp.find( ':' );
         result.channel_count = std::stoi( temp.substr( metadata_offset +1 ) );
         metadata_offset = temp.find( ':', metadata_offset + 1);
         result.sampling_period = std::stod( temp.substr( metadata_offset +1) );
         return result;                   
     }
+};
+
+template<>
+struct reader< TTree, waveform> {
+    using input_t = TTree;
+    using output_t = waveform;
+    
+    reader( std::size_t channel_count_p ) : 
+        channel_count_m{ channel_count_p },
+        waveform_mc{channel_count_m},
+        indirector_mc{channel_count_m} 
+    {
+        for( auto i{0} ; i < channel_count_m ; ++i ) { 
+            waveform_mc[i] = std::make_unique<waveform>( waveform{} );
+            indirector_mc[i] = waveform_mc[i].get();
+        }
+    }
+
+    std::vector< output_t > operator()( data_input<input_t>& input_p ) {
+        std::vector< output_t > output_c{channel_count_m}; 
+        for( auto i{0} ; i < channel_count_m ; ++i ) { 
+            std::string name = "channel_" + std::to_string(i);
+            input_p.input_h->SetBranchAddress( name.c_str(), &indirector_mc[i] ); 
+        }
+        input_p.load_entry();
+        for( auto i{0} ; i < channel_count_m ; ++i ) { 
+            output_c[i] = *waveform_mc[i]; 
+        }
+        return output_c;
+    }
+
+private:
+    std::size_t const channel_count_m;
+    std::vector< std::unique_ptr<waveform> > waveform_mc;
+    std::vector< waveform* > indirector_mc;
 };
 
 } // namespace sf_g

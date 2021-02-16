@@ -9,68 +9,81 @@
 #include "TTree.h"
 #include "TH1.h"
 
+#include <iostream>
 namespace sf_g{
     
 //------------------------------------------data_stream----------------------------------------
 template<class T>
-struct data_stream{};
+struct data_input{};
 
 template<>
-struct data_stream<std::ifstream> {
-    data_stream(std::string input_file_p):
-        stream{ check_validity( std::move(input_file_p) )},
+struct data_input<std::ifstream> {
+    data_input(std::string input_file_p):
+        input{ check_validity( std::move(input_file_p) )},
         sentinel_m{ compute_length() } {}
-    bool end_is_reached() { return stream.eof() || ((sentinel_m - stream.tellg()) == 0); }
+    bool end_is_reached() { return input.eof() || ((sentinel_m - input.tellg()) == 0); }
 
 private:
     std::ifstream check_validity( std::string input_file_p ) {
-        std::ifstream stream{ input_file_p, std::ios_base::binary };
-        if( stream.is_open() ){ return stream; }
+        std::ifstream input{ input_file_p, std::ios_base::binary };
+        if( input.is_open() ){ return input; }
         throw std::invalid_argument{ "unable to read the given file" };
     }
     std::ifstream::pos_type compute_length() {
-        stream.seekg(0, std::ios_base::end );
-        auto result = stream.tellg();
-        stream.seekg(0, std::ios_base::beg);
+        input.seekg(0, std::ios_base::end );
+        auto result = input.tellg();
+        input.seekg(0, std::ios_base::beg);
         return result;
     }
 
 public:
-    std::ifstream stream;
+    std::ifstream input;
 private:
     std::ifstream::pos_type const sentinel_m;
 };
 
-
 template<>
-struct data_stream<TTree> {
-    data_stream(std::string filename_p):
-        file_m{ filename_p.c_str(), "RECREATE" },
-        stream_h{ retrieve_tree( )},
-        sentinel_m{ static_cast<std::size_t>(stream_h->GetEntries()) } {}
-    bool end_is_reached() { return current_entry_m != sentinel_m ; }
-    void load_entry() {stream_h->GetEntry(current_entry_m++);}
-
-    ~data_stream() { stream_h->Write(); }
+struct data_input<TTree> {
+    data_input(std::string filename_p):
+        file_m{ filename_p.c_str(), "READ" },
+        input_h{ retrieve_tree( )},
+        sentinel_m{ static_cast<std::size_t>(input_h->GetEntries()) } {}
+    bool end_is_reached() { return current_entry_m == sentinel_m ; }
+    void load_entry() {input_h->GetEntry(current_entry_m++);}
 
 private:
     TTree* retrieve_tree() {
         auto * current_directory_h = TDirectory::CurrentDirectory();
-        auto& object_c = *current_directory_h->GetList();
-        for( auto * object_h : object_c ){
-            auto * tree_h = dynamic_cast<TTree*>( object_h );
+        auto& key_c = *current_directory_h->GetListOfKeys();
+        for( auto * key_h : key_c ){
+            auto * tree_h = dynamic_cast<TTree*>( file_m.Get( key_h->GetName() ));
             if(tree_h){ return tree_h; }
         }
-        return new TTree{ "data", "data from wavecatcher"}; 
+        throw std::runtime_error{"no viable tree found in input file"};
     }
 
 private:
     TFile file_m;
     std::size_t current_entry_m{0};
 public:
-    TTree* stream_h;
+    TTree* input_h;
 private:    
     std::size_t const sentinel_m;
+};
+
+template<class T> struct data_output{};
+
+template<>
+struct data_output<TTree> {
+    data_output(std::string filename_p):
+        file_m{ filename_p.c_str(), "RECREATE" },
+        output{ "data", "data from wavecatcher"} {}
+    ~data_output() { file_m.cd(); output.Write(); }
+
+private:
+    TFile file_m;
+public:
+    TTree output;
 };
 
 
@@ -78,7 +91,6 @@ private:
 template<class ... Ts>
 struct multi_input {
     using tuple_t = std::tuple< Ts... >;
-    constexpr multi_input(Ts&& ... t_p) : data_mc{std::make_tuple(std::move(t_p)...)} { }
     
 private:
     template< std::size_t Index, class F,
@@ -151,7 +163,9 @@ struct waveform {
     TH1D data; 
 };
 
-
+struct amplitude { double amplitude; };
+struct baseline { double baseline; };
+    
 
 }//namespace sf_g
 
