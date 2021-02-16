@@ -5,14 +5,9 @@
 
 #include <iostream>
 
-
-struct A{};
-struct B{};
-
 int main( int argc, char* argv[] ) {
 
     std::string input_file, output_file{"output.root"};
-    char format;
 
     if(argc < 3){ std::cerr << "surfer_girl should be called the following way: ./surfer_girl -in input_file.bin [-out output_file.root] \n"; return 1; }
     else{     
@@ -22,9 +17,9 @@ int main( int argc, char* argv[] ) {
         }
     }
 
-    std::cout << output_file << '\n';
+    std::cout << output_file ;
 
-    auto source = sf_g::data_stream< std::ifstream >{ input_file };           
+    auto source = sf_g::data_input< std::ifstream >{ input_file };           
     auto const metadata = sf_g::reader<std::ifstream, sf_g::metadata>{}( source );
 //    std::cout << "metadata: " << metadata.channel_count << " - " << metadata.sampling_period << "\n";
     auto const event_reader = sf_g::reader< std::ifstream, sf_g::event_data>{};
@@ -32,7 +27,7 @@ int main( int argc, char* argv[] ) {
 
     auto const m = sf_g::modifier<sf_g::raw_waveform, sf_g::waveform>{metadata};
 
-    sf_g::data_stream< TTree > sink{ output_file };
+    sf_g::data_output< TTree > sink{ output_file };
     auto w = sf_g::writer<sf_g::waveform, TTree>{ sink, metadata.channel_count };
 
 //    std::cout << std::boolalpha << "end_is_reached: " << source.end_is_reached()  << '\n';
@@ -48,8 +43,5 @@ int main( int argc, char* argv[] ) {
 //               std::cout << "\n";
         w( std::move(modified_data) ); 
     }
-
-
-   auto m2 = sf_g::modifier< sf_g::waveform, sf_g::multi_output< A, B>, A, B>{ A{}, B{}};  
 }
 
