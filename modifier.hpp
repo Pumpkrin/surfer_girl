@@ -130,7 +130,7 @@ struct cfd_calculator {
             double df_value = fraction * ( input_p.data.GetBinContent(i + delay) - baseline );
             
             current = value - df_value;  
-            if( current * last < 0 ){ 
+            if( current * last <= 0 ){ 
                 double slope = (current - last)/( input_p.data.GetBinCenter(i) - input_p.data.GetBinCenter(i-1));
                 double offset = current - input_p.data.GetBinCenter(i)*slope;
                 return {-offset/slope}; 
