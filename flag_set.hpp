@@ -20,6 +20,9 @@ namespace details{
     struct any_of<T, Ts ...> : std::conditional< bool(T::value), T, any_of<Ts...> >::type {};
 } // namespace details
 
+struct baseline_flag{
+    static constexpr uint8_t shift = 5;
+};
 
 struct charge_flag{
     static constexpr uint8_t shift = 4;
@@ -63,41 +66,32 @@ struct flag_set<> {
     constexpr operator uint8_t() const {return 0;}
 };
 
-struct extended_flag_set{
-    template<class ... Ts, class ... Us>
-    friend constexpr extended_flag_set operator+(flag_set<Ts...> t_p, flag_set<Us...> u_p) {
-        extended_flag_set result{};
-        result.add( t_p );
-        result.add( u_p );
-        return result; 
-    }
+struct combined_flag_set{
+    template<class ... Fs>
+    friend constexpr combined_flag_set to_opcode(flag_set<Fs...> f_p); 
     template<class ... Ts>
-    friend constexpr extended_flag_set to_final(flag_set<Ts...> t_p); 
+    friend constexpr combined_flag_set to_opcode(Ts&&... ts_p); 
 
 public:
     constexpr operator uint32_t() const { return value; }
-
-    template<class ... Ts>
-    extended_flag_set& operator+( flag_set<Ts...> t_p ) {
-        this->add(t_p);
-        return *this;
-    }
-
-private:
-    extended_flag_set() =default ;
     constexpr void add( uint8_t value_p ) {
         value += value_p << shift;
         shift -= 8;
     }
+
+private:
+    combined_flag_set() = default ;
     uint32_t value{0};
     unsigned int shift{24};
 };
 
-uint8_t make_opcode( std::string& module_list_p ) {
+uint8_t make_single_opcode( std::string& module_list_p ) {
     uint8_t opcode{0};
     for( auto& token : module_list_p ){ 
         switch(token){
         case 'a': { opcode |= sf_g::flag_set< sf_g::amplitude_flag >{} ; break ; }
+        case 't': { opcode |= sf_g::flag_set< sf_g::cfd_flag >{} ; break ; }
+        case 'b': { opcode |= sf_g::flag_set< sf_g::baseline_flag >{} ; break ; }
         case ':': { break; }           
         case '{': { break; }           
         case '}': { break; }           
@@ -107,7 +101,7 @@ uint8_t make_opcode( std::string& module_list_p ) {
     return opcode;
 }
 
-uint32_t make_opcode( std::vector<uint8_t> opcode_pc ) {
+uint32_t make_combined_opcode( std::vector<uint8_t> opcode_pc ) {
     uint32_t result{0};
     if( opcode_pc.size() > 4 ){ throw std::runtime_error{"this amount of channel is not supported yet"}; } 
     unsigned int shift = 24;
@@ -118,11 +112,35 @@ uint32_t make_opcode( std::vector<uint8_t> opcode_pc ) {
     return result;
 }  
 
-template<class ... Ts>
-constexpr extended_flag_set to_final(flag_set<Ts...> t_p) {
-   extended_flag_set result{};
-   result.add( t_p );
+template<class ... Fs>
+constexpr combined_flag_set to_opcode(flag_set<Fs...> f_p) {
+   combined_flag_set result{};
+   result.add( f_p );
    return result; 
+}
+
+namespace details{
+template<class ... Ts> struct to_opcode_impl;
+template<class ... Fs, class ... Ts> 
+struct to_opcode_impl< flag_set<Fs...>, Ts...>{
+    constexpr void operator()(combined_flag_set& set_p, flag_set<Fs...> flag_p, Ts&&... ts_p) const {
+        set_p.add( flag_p );
+        to_opcode_impl<Ts...>{}( set_p, std::move(ts_p)... );
+    }
+};
+template<class ...Fs>
+struct to_opcode_impl< flag_set<Fs...> >{
+    constexpr void operator()(combined_flag_set& set_p, flag_set<Fs...> flag_p) const {
+        set_p.add(flag_p);
+    }
+};
+
+}//namespace details
+template<class ... Ts>
+constexpr combined_flag_set to_opcode(Ts&&... ts_p){
+    combined_flag_set result{};
+    details::to_opcode_impl<Ts...>{}( result, std::move(ts_p)... );
+    return result;
 }
 
 } //namespace sf_g
