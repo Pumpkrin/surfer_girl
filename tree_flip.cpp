@@ -46,9 +46,9 @@ int main( int argc, char* argv[] ) {
 
     std::vector<uint8_t> opcode_c(channel_count);
     for( auto i{0}; i < channel_count ; ++i){ 
-          opcode_c[i] = sf_g::make_opcode( module_list_c[i] ); 
+          opcode_c[i] = sf_g::make_single_opcode( module_list_c[i] ); 
     } 
-    auto modifier_opcode = sf_g::make_opcode( opcode_c );
+    auto modifier_opcode = sf_g::make_combined_opcode( opcode_c );
 
     sf_g::data_output< TTree > sink{ output_file };
     for( auto& input_file : input_file_c ){ 
@@ -57,11 +57,60 @@ int main( int argc, char* argv[] ) {
         sf_g::data_input<TTree> source{ input_file };           
         auto r = sf_g::reader<TTree, sf_g::waveform>{ channel_count }; 
         
+        printf( "modifier_opcode: %x\n", modifier_opcode);
         switch( modifier_opcode ) {
-            case sf_g::to_final(sf_g::flag_set<sf_g::amplitude_flag>{}) : {
-            auto const sm = sf_g::make_sub_modifier( sf_g::amplitude_finder{}, sf_g::baseline_finder{} );
-            auto const m = sf_g::make_multi_modifier<sf_g::waveform>( std::move(sm) ); 
-            auto w = sf_g::make_multi_writer< TTree >( m, sink ); 
+            using namespace sf_g;
+            case to_opcode(flag_set<amplitude_flag>{}, flag_set<cfd_flag>{}) : {
+            auto const sm1 = make_sub_modifier( amplitude_finder{} );
+            auto const sm2 = make_sub_modifier( cfd_calculator{}  );
+            auto const m = make_multi_modifier<waveform>( std::move(sm1), std::move(sm2) ); 
+            auto w = make_multi_writer< TTree >( m, sink ); 
+            while( !source.end_is_reached() ){
+                r(source) | m | w;
+            }
+            break;
+                                                                          }
+            case to_opcode(flag_set<cfd_flag>{}, flag_set<amplitude_flag>{}) : {
+            auto const sm1 = make_sub_modifier( cfd_calculator{} );
+            auto const sm2 = make_sub_modifier( amplitude_finder{} );
+            auto const m = make_multi_modifier<waveform>( std::move(sm1), std::move(sm2) ); 
+            auto w = make_multi_writer< TTree >( m, sink ); 
+            while( !source.end_is_reached() ){
+                r(source) | m | w;
+            }
+            break;
+                                                                          }
+            case to_opcode(flag_set<amplitude_flag, cfd_flag>{}) : {
+            auto const sm = make_sub_modifier( amplitude_finder{}, cfd_calculator{} );
+            auto const m = make_multi_modifier<waveform>( std::move(sm) ); 
+            auto w = make_multi_writer< TTree >( m, sink ); 
+            while( !source.end_is_reached() ){
+                r(source) | m | w;
+            }
+            break;
+                                                                          }
+            case to_opcode(flag_set<amplitude_flag>{}) : {
+            auto const sm = make_sub_modifier( amplitude_finder{} );
+            auto const m = make_multi_modifier<waveform>( std::move(sm) ); 
+            auto w = make_multi_writer< TTree >( m, sink ); 
+            while( !source.end_is_reached() ){
+                r(source) | m | w;
+            }
+            break;
+                                                                          }
+            case to_opcode(flag_set<cfd_flag>{}) : {
+            auto const sm = make_sub_modifier( cfd_calculator{} );
+            auto const m = make_multi_modifier<waveform>( std::move(sm) ); 
+            auto w = make_multi_writer< TTree >( m, sink ); 
+            while( !source.end_is_reached() ){
+                r(source) | m | w;
+            }
+            break;
+                                                                          }
+            case to_opcode(flag_set<baseline_flag>{}) : {
+            auto const sm = make_sub_modifier( baseline_finder{} );
+            auto const m = make_multi_modifier<waveform>( std::move(sm) ); 
+            auto w = make_multi_writer< TTree >( m, sink ); 
             while( !source.end_is_reached() ){
                 r(source) | m | w;
             }
