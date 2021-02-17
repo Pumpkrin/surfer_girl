@@ -165,6 +165,7 @@ struct waveform {
 
 struct amplitude { double amplitude; };
 struct baseline { double baseline; };
+struct cfd_time { double time; };
     
 
 }//namespace sf_g

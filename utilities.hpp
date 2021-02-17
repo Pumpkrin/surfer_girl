@@ -9,12 +9,12 @@
 namespace sf_g{
 template< class RO, 
           class MI, class MO, class ... Ms>
-constexpr MO operator|( RO&& reader_output_p, modifier<MI, MO, Ms...>& m_p) {
+constexpr auto operator|( RO&& reader_output_p, modifier<MI, MO, Ms...>& m_p) {
    return m_p( std::move(reader_output_p) );
 } 
 template< class RO, 
           class MI, class MO, class ... Ms>
-constexpr MO operator|( RO&& reader_output_p, modifier<MI, MO, Ms...> const& m_p) {
+constexpr auto operator|( RO&& reader_output_p, modifier<MI, MO, Ms...> const& m_p) {
    return m_p( std::move(reader_output_p) );
 } 
 

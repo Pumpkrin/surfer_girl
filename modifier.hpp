@@ -95,7 +95,7 @@ modifier<I, O, Ms...> make_multi_modifier( Ms&& ... sub_modifiers_p ) { return {
 
 struct amplitude_finder {
     using output_t = amplitude;
-    output_t operator()( waveform&& input_p ) const {
+    output_t operator()( waveform const&& input_p ) const {
         double baseline{0}; 
         for( auto i{0}; i < 16 ; ++i ) { baseline += input_p.data.GetBinContent( i +1 ); }
         baseline /= 16;
@@ -105,7 +105,7 @@ struct amplitude_finder {
 
 struct baseline_finder {
     using output_t = baseline;
-    output_t operator()( waveform&& input_p ) const {
+    output_t operator()( waveform const&& input_p ) const {
         double baseline{0};
         for( auto i{0}; i < 16 ; ++i ) { baseline += input_p.data.GetBinContent( i +1 ); }
         baseline /= 16;
@@ -113,6 +113,33 @@ struct baseline_finder {
     }
 };
 
+
+struct cfd_calculator {
+    using output_t = cfd_time;
+    output_t operator()(waveform const&& input_p) const {
+        double fraction = 0.4;
+        std::size_t delay = 15;
+
+        double baseline{0};
+        for( auto i{0}; i < 16 ; ++i ) { baseline += input_p.data.GetBinContent( i +1 ); }
+        baseline /= 16;
+
+        double current{0}, last{0};
+        for(auto i{1}; i < input_p.data.GetNbinsX()+1 - delay; ++i) {
+            double value = input_p.data.GetBinContent(i) - baseline; 
+            double df_value = fraction * ( input_p.data.GetBinContent(i + delay) - baseline );
+            
+            current = value - df_value;  
+            if( current * last < 0 ){ 
+                double slope = (current - last)/( input_p.data.GetBinCenter(i) - input_p.data.GetBinCenter(i-1));
+                double offset = current - input_p.data.GetBinCenter(i)*slope;
+                return {-offset/slope}; 
+            }     
+            last = current; 
+        }
+        return {-1};
+    }
+};
 
 
 } //namespace sf_g
