@@ -1,7 +1,4 @@
-#include "reader.hpp"
-#include "modifier.hpp"
-#include "writer.hpp"
-#include "data_format.hpp"
+#include "utilities.hpp"
 #include "flag_set.hpp"
 
 #include <regex>
@@ -56,7 +53,7 @@ int main( int argc, char* argv[] ) {
     sf_g::data_output< TTree > sink{ output_file };
     for( auto& input_file : input_file_c ){ 
 
-        std::cout << input_file << '\n'; 
+        std::cout << "processing: " << input_file << '\n'; 
         sf_g::data_input<TTree> source{ input_file };           
         auto r = sf_g::reader<TTree, sf_g::waveform>{ channel_count }; 
         
@@ -66,7 +63,7 @@ int main( int argc, char* argv[] ) {
             auto const m = sf_g::make_multi_modifier<sf_g::waveform>( std::move(sm) ); 
             auto w = sf_g::make_multi_writer< TTree >( m, sink ); 
             while( !source.end_is_reached() ){
-                w( m( r(source) ) );
+                r(source) | m | w;
             }
             break;
                                                                           }
@@ -75,20 +72,6 @@ int main( int argc, char* argv[] ) {
                 break; 
                     }
         } 
-//        while( !source.end_is_reached() ){ 
-//            auto waveform_c = r(source);
-//        }
     }
 
-
-//    auto const m = sf_g::modifier<sf_g::raw_waveform, sf_g::waveform>{metadata};
-
-//    auto w = sf_g::writer<sf_g::waveform, TTree>{ sink, metadata.channel_count };
-
-//    while( !source.end_is_reached() ){
-//        event_reader( source );
-//        auto data = waveform_reader( source );
-//        auto modified_data = m( std::move(data) );
-//        w( std::move(modified_data) ); 
-//    }
 }
