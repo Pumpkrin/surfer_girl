@@ -118,7 +118,11 @@ private:
 
 template<class ... Ts> struct multi_output : Ts... { };
 
-template<class ... Ts> struct composite : Ts... {};
+template<class ... Ts> struct composite : Ts... {
+    void value() { 
+        int expander[] = {0, ( static_cast<Ts&>(*this).value(), void(), 0)...};
+    }
+};
 
 // ------------------------------raw----------------------------------
 struct raw_waveform {
@@ -163,9 +167,9 @@ struct waveform {
     TH1D data; 
 };
 
-struct amplitude { double amplitude; };
-struct baseline { double baseline; };
-struct cfd_time { double time; };
+struct amplitude { double amplitude; void value() const {  std::cout << amplitude << '\n';} };
+struct baseline { double baseline; void value() const {  std::cout << baseline << '\n';} };
+struct cfd_time { double time; void value() const { std::cout << time << '\n';} };
     
 
 }//namespace sf_g

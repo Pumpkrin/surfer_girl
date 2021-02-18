@@ -47,6 +47,7 @@ int main( int argc, char* argv[] ) {
     std::vector<uint8_t> opcode_c(channel_count);
     for( auto i{0}; i < channel_count ; ++i){ 
           opcode_c[i] = sf_g::make_single_opcode( module_list_c[i] ); 
+          printf("opcode: %x\n", opcode_c[i]);
     } 
     auto modifier_opcode = sf_g::make_combined_opcode( opcode_c );
 
@@ -80,8 +81,26 @@ int main( int argc, char* argv[] ) {
             }
             break;
                                                                           }
+            case to_opcode(flag_set<amplitude_flag, cfd_flag, baseline_flag>{}) : {
+            auto const sm = make_sub_modifier( amplitude_finder{}, cfd_calculator{}, baseline_finder{} );
+            auto const m = make_multi_modifier<waveform>( std::move(sm) ); 
+            auto w = make_multi_writer< TTree >( m, sink ); 
+            while( !source.end_is_reached() ){
+                r(source) | m | w;
+            }
+            break;
+                                                                          }
             case to_opcode(flag_set<amplitude_flag, cfd_flag>{}) : {
             auto const sm = make_sub_modifier( amplitude_finder{}, cfd_calculator{} );
+            auto const m = make_multi_modifier<waveform>( std::move(sm) ); 
+            auto w = make_multi_writer< TTree >( m, sink ); 
+            while( !source.end_is_reached() ){
+                r(source) | m | w;
+            }
+            break;
+                                                                          }
+            case to_opcode(flag_set<amplitude_flag, baseline_flag>{}) : {
+            auto const sm = make_sub_modifier( amplitude_finder{}, baseline_finder{} );
             auto const m = make_multi_modifier<waveform>( std::move(sm) ); 
             auto w = make_multi_writer< TTree >( m, sink ); 
             while( !source.end_is_reached() ){
@@ -113,6 +132,11 @@ int main( int argc, char* argv[] ) {
             auto w = make_multi_writer< TTree >( m, sink ); 
             while( !source.end_is_reached() ){
                 r(source) | m | w;
+//                auto raw_data = r(source);
+//                std::cout << raw_data[0].data.GetMinimum() << '\n';
+//                auto data = m( std::move( raw_data) );
+//                std::cout << data.baseline << '\n'; 
+//                w( std::move(data) );
             }
             break;
                                                                           }

@@ -56,6 +56,19 @@ private:
     tuple_t const module_mc;
 };
 
+template< class M > 
+struct sub_modifier<M>{
+    using output_t = typename M::output_t;
+
+    sub_modifier(M&& m_p) : module_m{ std::move(m_p) } {}
+    output_t operator()( waveform&& input_p ) const {
+        return module_m( std::move(input_p) );
+    }
+
+private:
+    M const module_m;
+};
+
 template< class ... Modules>
 sub_modifier<Modules...> make_sub_modifier( Modules&& ... ms_p ) {return {std::move(ms_p)...};}
 
@@ -95,7 +108,7 @@ modifier<I, O, Ms...> make_multi_modifier( Ms&& ... sub_modifiers_p ) { return {
 
 struct amplitude_finder {
     using output_t = amplitude;
-    output_t operator()( waveform const&& input_p ) const {
+    output_t operator()( waveform&& input_p ) const {
         double baseline{0}; 
         for( auto i{0}; i < 16 ; ++i ) { baseline += input_p.data.GetBinContent( i +1 ); }
         baseline /= 16;
@@ -105,7 +118,7 @@ struct amplitude_finder {
 
 struct baseline_finder {
     using output_t = baseline;
-    output_t operator()( waveform const&& input_p ) const {
+    output_t operator()( waveform&& input_p ) const {
         double baseline{0};
         for( auto i{0}; i < 16 ; ++i ) { baseline += input_p.data.GetBinContent( i +1 ); }
         baseline /= 16;
@@ -116,7 +129,7 @@ struct baseline_finder {
 
 struct cfd_calculator {
     using output_t = cfd_time;
-    output_t operator()(waveform const&& input_p) const {
+    output_t operator()(waveform&& input_p) const {
         double fraction = 0.4;
         std::size_t delay = 15;
 
@@ -125,14 +138,18 @@ struct cfd_calculator {
         baseline /= 16;
 
         double current{0}, last{0};
+//        std::cout << "cfd:\n";
         for(auto i{1}; i < input_p.data.GetNbinsX()+1 - delay; ++i) {
             double value = input_p.data.GetBinContent(i) - baseline; 
             double df_value = fraction * ( input_p.data.GetBinContent(i + delay) - baseline );
+//            std::cout << "value: " << value << " - df_value: " << df_value << '\n';
             
             current = value - df_value;  
-            if( current * last <= 0 ){ 
+            if( current * last < 0 ){ 
                 double slope = (current - last)/( input_p.data.GetBinCenter(i) - input_p.data.GetBinCenter(i-1));
                 double offset = current - input_p.data.GetBinCenter(i)*slope;
+//                std::cout << "slope: " << slope << " - offset: " << offset << '\n';
+//                std::cout << "time: " << -offset/slope << '\n';
                 return {-offset/slope}; 
             }     
             last = current; 

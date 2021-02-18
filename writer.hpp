@@ -39,13 +39,13 @@ struct writer< I, TTree >{
 template<class ... Is>
 struct writer< multi_input<Is...>, TTree > {
     writer( data_output<TTree>& output_p ) : 
-        tree_m{ output_p.output } { 
+        tree_m{ output_p.output } 
+    { 
         std::size_t index{0};
         data_mc.apply_for_each(        
                 [this, &index]( auto& data_p ){ 
                     std::string name = "channel_" + std::to_string(index++);
                     tree_m.Branch( name.c_str(), &data_p ); 
-                    //some glue need to be fully compatible -> i.e. readable via root
                 }
         ); 
    }
@@ -62,6 +62,25 @@ struct writer< multi_input<Is...>, TTree > {
 private:
     TTree& tree_m;
     multi_input<Is...> data_mc; 
+};
+
+template<class I>
+struct writer< multi_input<I>, TTree > {
+    writer( data_output<TTree>& output_p ) : 
+        tree_m{ output_p.output } 
+    { 
+        tree_m.Branch( "channel_0", &data_m ); 
+    }
+
+    constexpr void operator()( multi_output<I>&& input_pc ) {
+        data_m = static_cast<I>(input_pc);
+//        data_m.value();
+        tree_m.Fill();
+    } 
+
+private:
+    TTree& tree_m;
+    I data_m; 
 };
 
 
