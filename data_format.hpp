@@ -170,7 +170,7 @@ struct waveform {
 struct amplitude { double amplitude; void value() const {  std::cout << amplitude << '\n';} };
 struct baseline { double baseline; void value() const {  std::cout << baseline << '\n';} };
 struct cfd_time { double time; void value() const { std::cout << time << '\n';} };
-    
+struct charge { double charge; void value() const { std::cout << charge << '\n';} };    
 
 }//namespace sf_g
 

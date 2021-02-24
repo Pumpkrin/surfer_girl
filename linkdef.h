@@ -3,4 +3,5 @@
 #pragma link C++ class sf_g::amplitude;
 #pragma link C++ class sf_g::baseline;
 #pragma link C++ class sf_g::cfd_time;
+#pragma link C++ class sf_g::charge;
 #endif

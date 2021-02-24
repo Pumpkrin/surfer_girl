@@ -67,7 +67,7 @@ private:
 template<class I>
 struct writer< multi_input<I>, TTree > {
     writer( data_output<TTree>& output_p ) : 
-        tree_m{ output_p.output } 
+        tree_m{ output_p.output }
     { 
         tree_m.Branch( "channel_0", &data_m ); 
     }
@@ -79,6 +79,7 @@ struct writer< multi_input<I>, TTree > {
     } 
 
 private:
+  int required_for_tree_filling{}; //apparently needed for root to fill the tree in the case of an lonely modifier
     TTree& tree_m;
     I data_m; 
 };

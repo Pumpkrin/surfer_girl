@@ -31,7 +31,7 @@ int main( int argc, char* argv[] ) {
         std::cerr << "tree_flip is used to produce measurements from waveform, and can handle several input files.\nIf those are not provided, it will try to get them from std::cin.\nIt should be called the following way: ./tree_flip [-in input_file.root:...] -mod {module:...}[...] -out output_file.root \n"; return 1; }
     else{     
         for(auto i{0}; i < argc; ++i) {
-            if( std::string( argv[i] ) == "-in" ){ input_file_c = regex_split(std::string{ argv[++i] }, std::regex{"(\\w|\\.)+([^:]|$)"}); input_provided = true; }
+            if( std::string( argv[i] ) == "-in" ){ input_file_c = regex_split(std::string{ argv[++i] }, std::regex{"[^:]+"}); input_provided = true; }
             if( std::string( argv[i] ) == "-out") { output_file = std::string{ argv[++i]}; }
             if( std::string( argv[i] ) == "-mod") {  module_list_c = regex_split(std::string{ argv[++i] }, std::regex{"\\{[^\\{\\}]*\\}"}); }
         }
@@ -81,6 +81,15 @@ int main( int argc, char* argv[] ) {
             }
             break;
                                                                           }
+            case to_opcode(flag_set<amplitude_flag, charge_flag, baseline_flag>{}) : {
+            auto const sm = make_sub_modifier( amplitude_finder{}, charge_integrator{}, baseline_finder{} );
+            auto const m = make_multi_modifier<waveform>( std::move(sm) ); 
+            auto w = make_multi_writer< TTree >( m, sink ); 
+            while( !source.end_is_reached() ){
+                r(source) | m | w;
+            }
+            break;
+                                                                          }
             case to_opcode(flag_set<amplitude_flag, cfd_flag, baseline_flag>{}) : {
             auto const sm = make_sub_modifier( amplitude_finder{}, cfd_calculator{}, baseline_finder{} );
             auto const m = make_multi_modifier<waveform>( std::move(sm) ); 
@@ -108,6 +117,15 @@ int main( int argc, char* argv[] ) {
             }
             break;
                                                                           }
+            case to_opcode(flag_set<amplitude_flag, charge_flag>{}) : {
+            auto const sm = make_sub_modifier( amplitude_finder{}, charge_integrator{} );
+            auto const m = make_multi_modifier<waveform>( std::move(sm) ); 
+            auto w = make_multi_writer< TTree >( m, sink ); 
+            while( !source.end_is_reached() ){
+                r(source) | m | w;
+            }
+            break;
+                                                                          }
             case to_opcode(flag_set<amplitude_flag>{}) : {
             auto const sm = make_sub_modifier( amplitude_finder{} );
             auto const m = make_multi_modifier<waveform>( std::move(sm) ); 
@@ -119,6 +137,15 @@ int main( int argc, char* argv[] ) {
                                                                           }
             case to_opcode(flag_set<cfd_flag>{}) : {
             auto const sm = make_sub_modifier( cfd_calculator{} );
+            auto const m = make_multi_modifier<waveform>( std::move(sm) ); 
+            auto w = make_multi_writer< TTree >( m, sink ); 
+            while( !source.end_is_reached() ){
+                r(source) | m | w;
+            }
+            break;
+                                                                          }
+            case to_opcode(flag_set<charge_flag>{}) : {
+            auto const sm = make_sub_modifier( charge_integrator{} );
             auto const m = make_multi_modifier<waveform>( std::move(sm) ); 
             auto w = make_multi_writer< TTree >( m, sink ); 
             while( !source.end_is_reached() ){

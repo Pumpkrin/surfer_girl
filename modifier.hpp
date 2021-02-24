@@ -158,6 +158,22 @@ struct cfd_calculator {
     }
 };
 
+struct charge_integrator {
+    using output_t = charge;
+    output_t operator()(waveform&& input_p) const {
+
+        double baseline{0};
+        for( auto i{0}; i < 16 ; ++i ) { baseline += input_p.data.GetBinContent( i +1 ); }
+        baseline /= 16;
+
+        double waveform_length = input_p.data.GetBinCenter(input_p.data.GetXaxis()->GetLast());
+//        std::cout << "rectangle_integral: " << baseline*waveform_length << '\n';
+//        std::cout << "signal_integral: " << input_p.data.Integral("width") << '\n';
+//        std::cout << "waveform_length: " << waveform_length << '\n';
+        charge result{baseline*waveform_length - input_p.data.Integral("width")};  
+        return result.charge > 0 ? result : charge{0};
+    }
+};
 
 } //namespace sf_g
 #endif

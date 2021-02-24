@@ -92,6 +92,7 @@ uint8_t make_single_opcode( std::string& module_list_p ) {
         case 'a': { opcode |= sf_g::flag_set< sf_g::amplitude_flag >{} ; break ; }
         case 't': { opcode |= sf_g::flag_set< sf_g::cfd_flag >{} ; break ; }
         case 'b': { opcode |= sf_g::flag_set< sf_g::baseline_flag >{} ; break ; }
+        case 'c': { opcode |= sf_g::flag_set< sf_g::charge_flag >{} ; break ; }
         case ':': { break; }           
         case '{': { break; }           
         case '}': { break; }           
