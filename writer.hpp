@@ -2,12 +2,34 @@
 #define WRITER_HPP
 
 #include "data_format.hpp"
-
 #include "TTree.h"
 
 namespace sf_g{
 
+struct raw_writer{
+    raw_writer(data_output<TTree>& tree_p, int channel_count_p  ) : 
+        channel_count_m{ static_cast<size_t>( channel_count_p ) }, 
+        data_mc{ channel_count_m },
+        tree_m{ tree_p } {
+            for( auto i{0}; i < channel_count_m ; ++i) {
+                std::string name = "channel_" + std::to_string(i);
+                tree_m.branch( name.c_str(), &data_mc[i] ); 
+            } 
+        }
 
+    constexpr void operator()( std::vector<waveform>&& input_pc ) {
+        for( auto i{0} ; i < channel_count_m ; ++i ) {
+           data_mc[i] = std::move( input_pc[i] ) ;
+//           std::cout << data_mc[i].fcr << '\n';
+        }
+        tree_m.fill();
+    } 
+
+    private:
+    size_t const channel_count_m;
+    std::vector<waveform> data_mc;
+    data_output<TTree>&  tree_m;
+};
 
 
 template<class Specifier>

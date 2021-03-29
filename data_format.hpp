@@ -82,6 +82,8 @@ struct data_output<TTree> {
     
     template<class T>
     void register_writer( std::string const& name_p, T* object_ph ) { ++writer_count; tree_m.Branch( name_p.c_str(), object_ph); }
+    template<class T>
+    void branch( std::string const& name_p, T* object_ph ) { tree_m.Branch( name_p.c_str(), object_ph); }
     void fill() {if( ++current_fill_request == writer_count){ tree_m.Fill(); current_fill_request = 0 ;}} 
        
 private:
