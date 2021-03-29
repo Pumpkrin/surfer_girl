@@ -69,6 +69,7 @@ template<> struct specifier<0x02>{ using pack = details::pack< cfd_calculator> ;
 template<> struct specifier<0x04>{ using pack = details::pack< rise_time_calculator>; using data_t = rise_time; };
 template<> struct specifier<0x08>{ using pack = details::pack< charge_integrator >; using data_t = charge; };
 template<> struct specifier<0x10>{ using pack = details::pack< baseline_finder >; using data_t = baseline; };
+template<> struct specifier<0x11>{ using pack = details::pack< amplitude_finder, baseline_finder >; using data_t = composite<amplitude, baseline>; };
 
 struct waveform_specifier{ using data_t = waveform; };
 

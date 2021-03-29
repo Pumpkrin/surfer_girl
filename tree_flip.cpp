@@ -60,12 +60,36 @@ int main( int argc, char* argv[] ) {
             te.add( sf_g::branch_editor< specifier<flag_set<amplitude_flag>{}> >{ sp.channel_number, sink } ); 
             break;
                                          }
+        case flag_set<charge_flag>{} : {
+            te.add( sf_g::branch_editor< specifier<flag_set<charge_flag>{}> >{ sp.channel_number, sink } ); 
+            break;
+                                         }
+        case flag_set<rise_flag>{} : {
+            te.add( sf_g::branch_editor< specifier<flag_set<rise_flag>{}> >{ sp.channel_number, sink } ); 
+            break;
+                                         }
+        case flag_set<cfd_flag>{} : {
+            te.add( sf_g::branch_editor< specifier<flag_set<cfd_flag>{}> >{ sp.channel_number, sink } ); 
+            break;
+                                         }
+        case flag_set<baseline_flag>{} : {
+            te.add( sf_g::branch_editor< specifier<flag_set<baseline_flag>{}> >{ sp.channel_number, sink } ); 
+            break;
+                                         }
+        case flag_set<amplitude_flag, baseline_flag>{} : {
+            te.add( sf_g::branch_editor< specifier<flag_set<amplitude_flag, baseline_flag>{}> >{ sp.channel_number, sink } ); 
+            break;
+                                         }
+        default: {
+            std::cerr << "This configuration as not been implemented yet\n";
+            break;
+                 }
         }
     }
     for( auto& input_file : input_file_c ){ 
         std::cout << "processing: " << input_file << '\n'; 
         sf_g::data_input<TTree> source{ input_file };           
-        auto r = sf_g::reader<TTree, sf_g::waveform>{ channel_count }; //channel count can be deduced from number of keys in tree
+        auto r = sf_g::reader<TTree, sf_g::waveform>{ source }; //channel count can be deduced from number of keys in tree
         //on reader, always retrieve everything
         
         while( !source.end_is_reached() ){

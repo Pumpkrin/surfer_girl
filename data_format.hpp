@@ -80,15 +80,16 @@ struct data_output<TTree> {
         tree_m{ "data", "data from wavecatcher"} {}
     ~data_output() { file_m.cd(); tree_m.Write(); }
     
+    void register_writer() { ++writer_count; }
     template<class T>
-    void register_writer( std::string const& name_p, T* object_ph ) { ++writer_count; tree_m.Branch( name_p.c_str(), object_ph); }
+    TBranch* register_branch_writer( std::string const& name_p, T* object_ph ) { ++writer_count; return tree_m.Branch( name_p.c_str(), object_ph); }
     template<class T>
-    void branch( std::string const& name_p, T* object_ph ) { tree_m.Branch( name_p.c_str(), object_ph); }
+    TBranch* branch( std::string const& name_p, T* object_ph ) { return tree_m.Branch( name_p.c_str(), object_ph); }
     void fill() {if( ++current_fill_request == writer_count){ tree_m.Fill(); current_fill_request = 0 ;}} 
        
 private:
     TFile file_m;
-    std::size_t writer_count{1};
+    std::size_t writer_count{0};
     std::size_t current_fill_request{0};
     TTree tree_m;
 };

@@ -148,28 +148,30 @@ struct reader< TTree, waveform> {
     using input_t = TTree;
     using output_t = waveform;
     
-    reader( std::size_t channel_count_p ) : 
-        channel_count_m{ channel_count_p },
+    reader(data_input<input_t>& input_p) : 
+        channel_count_m{ retrieve_channel_count(input_p) },
         waveform_mc{channel_count_m},
         indirector_mc{channel_count_m} 
     {
         for( auto i{0} ; i < channel_count_m ; ++i ) { 
             waveform_mc[i] = std::make_unique<waveform>( waveform{} );
             indirector_mc[i] = waveform_mc[i].get();
+            std::string name = "channel_" + std::to_string(i) + ".";
+            input_p.input_h->SetBranchAddress( name.c_str(), &indirector_mc[i] ); 
         }
     }
 
     std::vector< output_t > operator()( data_input<input_t>& input_p ) {
         std::vector< output_t > output_c{channel_count_m}; 
-        for( auto i{0} ; i < channel_count_m ; ++i ) { 
-            std::string name = "channel_" + std::to_string(i);
-            input_p.input_h->SetBranchAddress( name.c_str(), &indirector_mc[i] ); 
-        }
         input_p.load_entry();
         for( auto i{0} ; i < channel_count_m ; ++i ) { 
             output_c[i] = *waveform_mc[i]; 
         }
         return output_c;
+    }
+private:
+    std::size_t retrieve_channel_count(data_input<input_t>& input_p) const {
+        return input_p.input_h->GetListOfBranches()->GetEntries();
     }
 
 private:
