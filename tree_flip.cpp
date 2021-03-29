@@ -1,5 +1,5 @@
 #include "utilities.hpp"
-#include "flag_set.hpp"
+#include "specifier.hpp"
 
 #include <regex>
 #include <iostream>
@@ -28,7 +28,7 @@ int main( int argc, char* argv[] ) {
     std::vector<std::string> module_list_c;
 
     if(argc < 5){ 
-        std::cerr << "tree_flip is used to produce measurements from waveform, and can handle several input files.\nIf those are not provided, it will try to get them from std::cin.\nIt should be called the following way: ./tree_flip [-in input_file.root:...] -mod {module:...}[...] -out output_file.root \n"; return 1; }
+        std::cerr << "tree_flip is used to produce measurements from waveform, and can handle several input files.\nIf those are not provided, it will try to get them from std::cin.\nIt should be called the following way: ./tree_flip [-in input_file.root:...] -mod {channel_number:modules:...}[...] -out output_file.root \n"; return 1; }
     else{     
         for(auto i{0}; i < argc; ++i) {
             if( std::string( argv[i] ) == "-in" ){ input_file_c = regex_split(std::string{ argv[++i] }, std::regex{"[^:]+"}); input_provided = true; }
@@ -37,141 +37,40 @@ int main( int argc, char* argv[] ) {
         }
     }
 
-    std::size_t const channel_count = module_list_c.size();
     if(!input_provided){
         std::string input;
         std::cin >> input;
         input_file_c =  regex_split(input, std::regex{"\\w+.root"});
     }
 
-    std::vector<uint8_t> opcode_c(channel_count);
+    std::size_t const channel_count = module_list_c.size();
+    std::vector<sf_g::specifier_pairing> sp_c(channel_count);
     for( auto i{0}; i < channel_count ; ++i){ 
-          opcode_c[i] = sf_g::make_single_opcode( module_list_c[i] ); 
-          printf("opcode: %x\n", opcode_c[i]);
+          sp_c[i] = sf_g::make_specifier_pairing( module_list_c[i] ); 
+//          printf("opcode: %x\n", opcode_c[i]);
     } 
-    auto modifier_opcode = sf_g::make_combined_opcode( opcode_c );
 
     sf_g::data_output< TTree > sink{ output_file };
+    sf_g::tree_editor te;
+    te.reserve(channel_count);
+    for( auto& sp : sp_c ){
+        switch( sp.opcode ) {
+        using namespace sf_g;
+        case flag_set<amplitude_flag>{} : {
+            te.add( sf_g::branch_editor< specifier<flag_set<amplitude_flag>{}> >{ sp.channel_number, sink } ); 
+            break;
+                                         }
+        }
+    }
     for( auto& input_file : input_file_c ){ 
-
         std::cout << "processing: " << input_file << '\n'; 
         sf_g::data_input<TTree> source{ input_file };           
-        auto r = sf_g::reader<TTree, sf_g::waveform>{ channel_count }; 
+        auto r = sf_g::reader<TTree, sf_g::waveform>{ channel_count }; //channel count can be deduced from number of keys in tree
+        //on reader, always retrieve everything
         
-        printf( "modifier_opcode: %x\n", modifier_opcode);
-        switch( modifier_opcode ) {
-            using namespace sf_g;
-            case to_opcode(flag_set<amplitude_flag>{}, flag_set<cfd_flag>{}) : {
-            auto const sm1 = make_sub_modifier( amplitude_finder{} );
-            auto const sm2 = make_sub_modifier( cfd_calculator{}  );
-            auto const m = make_multi_modifier<waveform>( std::move(sm1), std::move(sm2) ); 
-            auto w = make_multi_writer< TTree >( m, sink ); 
-            while( !source.end_is_reached() ){
-                r(source) | m | w;
-            }
-            break;
-                                                                          }
-            case to_opcode(flag_set<cfd_flag>{}, flag_set<amplitude_flag>{}) : {
-            auto const sm1 = make_sub_modifier( cfd_calculator{} );
-            auto const sm2 = make_sub_modifier( amplitude_finder{} );
-            auto const m = make_multi_modifier<waveform>( std::move(sm1), std::move(sm2) ); 
-            auto w = make_multi_writer< TTree >( m, sink ); 
-            while( !source.end_is_reached() ){
-                r(source) | m | w;
-            }
-            break;
-                                                                          }
-            case to_opcode(flag_set<amplitude_flag, charge_flag, baseline_flag>{}) : {
-            auto const sm = make_sub_modifier( amplitude_finder{}, charge_integrator{}, baseline_finder{} );
-            auto const m = make_multi_modifier<waveform>( std::move(sm) ); 
-            auto w = make_multi_writer< TTree >( m, sink ); 
-            while( !source.end_is_reached() ){
-                r(source) | m | w;
-            }
-            break;
-                                                                          }
-            case to_opcode(flag_set<amplitude_flag, cfd_flag, baseline_flag>{}) : {
-            auto const sm = make_sub_modifier( amplitude_finder{}, cfd_calculator{}, baseline_finder{} );
-            auto const m = make_multi_modifier<waveform>( std::move(sm) ); 
-            auto w = make_multi_writer< TTree >( m, sink ); 
-            while( !source.end_is_reached() ){
-                r(source) | m | w;
-            }
-            break;
-                                                                          }
-            case to_opcode(flag_set<amplitude_flag, cfd_flag>{}) : {
-            auto const sm = make_sub_modifier( amplitude_finder{}, cfd_calculator{} );
-            auto const m = make_multi_modifier<waveform>( std::move(sm) ); 
-            auto w = make_multi_writer< TTree >( m, sink ); 
-            while( !source.end_is_reached() ){
-                r(source) | m | w;
-            }
-            break;
-                                                                          }
-            case to_opcode(flag_set<amplitude_flag, baseline_flag>{}) : {
-            auto const sm = make_sub_modifier( amplitude_finder{}, baseline_finder{} );
-            auto const m = make_multi_modifier<waveform>( std::move(sm) ); 
-            auto w = make_multi_writer< TTree >( m, sink ); 
-            while( !source.end_is_reached() ){
-                r(source) | m | w;
-            }
-            break;
-                                                                          }
-            case to_opcode(flag_set<amplitude_flag, charge_flag>{}) : {
-            auto const sm = make_sub_modifier( amplitude_finder{}, charge_integrator{} );
-            auto const m = make_multi_modifier<waveform>( std::move(sm) ); 
-            auto w = make_multi_writer< TTree >( m, sink ); 
-            while( !source.end_is_reached() ){
-                r(source) | m | w;
-            }
-            break;
-                                                                          }
-            case to_opcode(flag_set<amplitude_flag>{}) : {
-            auto const sm = make_sub_modifier( amplitude_finder{} );
-            auto const m = make_multi_modifier<waveform>( std::move(sm) ); 
-            auto w = make_multi_writer< TTree >( m, sink ); 
-            while( !source.end_is_reached() ){
-                r(source) | m | w;
-            }
-            break;
-                                                                          }
-            case to_opcode(flag_set<cfd_flag>{}) : {
-            auto const sm = make_sub_modifier( cfd_calculator{} );
-            auto const m = make_multi_modifier<waveform>( std::move(sm) ); 
-            auto w = make_multi_writer< TTree >( m, sink ); 
-            while( !source.end_is_reached() ){
-                r(source) | m | w;
-            }
-            break;
-                                                                          }
-            case to_opcode(flag_set<charge_flag>{}) : {
-            auto const sm = make_sub_modifier( charge_integrator{} );
-            auto const m = make_multi_modifier<waveform>( std::move(sm) ); 
-            auto w = make_multi_writer< TTree >( m, sink ); 
-            while( !source.end_is_reached() ){
-                r(source) | m | w;
-            }
-            break;
-                                                                          }
-            case to_opcode(flag_set<baseline_flag>{}) : {
-            auto const sm = make_sub_modifier( baseline_finder{} );
-            auto const m = make_multi_modifier<waveform>( std::move(sm) ); 
-            auto w = make_multi_writer< TTree >( m, sink ); 
-            while( !source.end_is_reached() ){
-                r(source) | m | w;
-//                auto raw_data = r(source);
-//                std::cout << raw_data[0].data.GetMinimum() << '\n';
-//                auto data = m( std::move( raw_data) );
-//                std::cout << data.baseline << '\n'; 
-//                w( std::move(data) );
-            }
-            break;
-                                                                          }
-            default:{
-                std::cerr << "This modifier configuration has not been implemented yet\n";
-                break; 
-                    }
-        } 
+        while( !source.end_is_reached() ){
+            r(source) | te;
+        }
     }
 
 }

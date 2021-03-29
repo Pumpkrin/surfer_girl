@@ -77,46 +77,19 @@ template<>
 struct data_output<TTree> {
     data_output(std::string filename_p):
         file_m{ filename_p.c_str(), "RECREATE" },
-        output{ "data", "data from wavecatcher"} {}
-    ~data_output() { file_m.cd(); output.Write(); }
-
+        tree_m{ "data", "data from wavecatcher"} {}
+    ~data_output() { file_m.cd(); tree_m.Write(); }
+    
+    template<class T>
+    void register_writer( std::string const& name_p, T* object_ph ) { ++writer_count; tree_m.Branch( name_p.c_str(), object_ph); }
+    void fill() {if( ++current_fill_request == writer_count){ tree_m.Fill(); current_fill_request = 0 ;}} 
+       
 private:
     TFile file_m;
-public:
-    TTree output;
+    std::size_t writer_count{1};
+    std::size_t current_fill_request{0};
+    TTree tree_m;
 };
-
-
-//------------------------------multi--------------------------------
-template<class ... Ts>
-struct multi_input {
-    using tuple_t = std::tuple< Ts... >;
-    
-private:
-    template< std::size_t Index, class F,
-              typename std::enable_if_t< (Index < std::tuple_size<tuple_t>::value), std::nullptr_t > = nullptr >
-    constexpr void apply_for_each_impl(F&& f_p) 
-    {
-        f_p( std::get<Index>(data_mc) );
-        apply_for_each_impl<Index+1>(std::forward<F>(f_p));
-    }
-    
-    template< std::size_t Index, class F,
-              typename std::enable_if_t< (Index >= std::tuple_size<tuple_t>::value), std::nullptr_t > = nullptr >
-    constexpr void apply_for_each_impl(F&& /*f_p*/) {}
-
-public: 
-    template<class F>
-    constexpr void apply_for_each(F&& f_p) 
-    {
-        apply_for_each_impl<0>( std::forward<F>(f_p) );
-    }
-
-private:
-    std::tuple< Ts...> data_mc;
-};
-
-template<class ... Ts> struct multi_output : Ts... { };
 
 template<class ... Ts> struct composite : Ts... {
     void value() { 
@@ -171,6 +144,8 @@ struct amplitude { double amplitude; void value() const {  std::cout << amplitud
 struct baseline { double baseline; void value() const {  std::cout << baseline << '\n';} };
 struct cfd_time { double time; void value() const { std::cout << time << '\n';} };
 struct charge { double charge; void value() const { std::cout << charge << '\n';} };    
+struct rise_time { double rise_time; void value() const { std::cout << rise_time << '\n';} };    
+struct fall_time { double fall_time; void value() const { std::cout << fall_time << '\n';} };    
 
 }//namespace sf_g
 

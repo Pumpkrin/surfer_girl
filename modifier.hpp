@@ -7,13 +7,10 @@
 #include <tuple>
 
 namespace sf_g {
-template< class I, class O, class ... Ms > struct modifier {};
-
-template< class I > 
-struct modifier< I, waveform > {
-    modifier( metadata m_p) : metadata_m{ m_p } {}
+struct raw_modifier {
+    raw_modifier( metadata m_p) : metadata_m{ m_p } {}
     
-    std::vector<waveform> operator()(std::vector<I>&& data_pc) const {
+    std::vector<waveform> operator()(std::vector<raw_waveform>&& data_pc) const {
         std::vector<waveform> result_c{ static_cast<std::size_t>(metadata_m.channel_count) };
         for( auto& result : result_c) { 
             result.data = TH1D{ "", ";time;ADC", 1024, -metadata_m.sampling_period/2, (1024-1)*metadata_m.sampling_period+ metadata_m.sampling_period/2 };
@@ -35,20 +32,21 @@ namespace details{
     struct pack{ constexpr static std::size_t size = sizeof...(Ts); };
 } //namespace details    
 
+template<class T> struct modifier_impl{};
 template< class ... Modules > 
-struct sub_modifier{
+struct modifier_impl< details::pack< Modules...> >{
     using tuple_t = std::tuple< Modules... >;
     using output_t = composite< typename Modules::output_t... >;
 
-    sub_modifier(Modules&&... ms_p) : module_mc{ std::make_tuple( std::move( ms_p )...  ) } {}
-    output_t operator()( waveform&& input_p ) const {
-        return call( std::move(input_p), std::make_index_sequence<sizeof...(Modules)>{} );
+    modifier_impl() = default;
+    output_t operator()( waveform const& input_p ) const {
+        return modify_impl( input_p, std::make_index_sequence<sizeof...(Modules)>{} );
     }
     private:
     template<std::size_t ... Indices>
-    output_t call( waveform&& input_p, std::index_sequence<Indices...> ) const {
+    output_t modify_impl( waveform const& input_p, std::index_sequence<Indices...> ) const {
         output_t output;
-        int expander[] = { 0, ( static_cast< typename std::tuple_element_t<Indices, tuple_t>::output_t&>( output ) = std::get<Indices>(module_mc)( std::move(input_p) ), void(), 0 ) ... }; 
+        int expander[] = { 0, ( static_cast< typename std::tuple_element_t<Indices, tuple_t>::output_t&>( output ) = std::get<Indices>(module_mc)( input_p ), void(), 0 ) ... }; 
         return output;
     }  
 
@@ -57,58 +55,26 @@ private:
 };
 
 template< class M > 
-struct sub_modifier<M>{
+struct modifier_impl< details::pack<M> >{
     using output_t = typename M::output_t;
 
-    sub_modifier(M&& m_p) : module_m{ std::move(m_p) } {}
-    output_t operator()( waveform&& input_p ) const {
-        return module_m( std::move(input_p) );
+    output_t operator()( waveform const& input_p ) const {
+        return module_m( input_p );
     }
 
 private:
-    M const module_m;
+    M const module_m{};
 };
 
-template< class ... Modules>
-sub_modifier<Modules...> make_sub_modifier( Modules&& ... ms_p ) {return {std::move(ms_p)...};}
+template< class Specifier >
+using modifier = modifier_impl< typename Specifier::pack >;
+ 
 
-
-
-template< class ... Os, class ... Ms > 
-struct modifier< waveform, multi_output<Os...>, Ms... > {
-    using tuple_t = std::tuple<Ms...>;
-
-    template< class T = details::pack<Os...>, 
-              class Enabler = std::enable_if_t< T::size == sizeof...(Ms)> > 
-    constexpr modifier(Ms&& ... sub_modifiers_p) : sub_modifier_mc{ std::make_tuple( sub_modifiers_p...) } {} 
-    multi_output<Os...> operator()( std::vector<waveform>&& input_pc ) const {
-        return call_impl( std::move(input_pc), std::make_index_sequence< sizeof...(Os)>{} ); 
-    }
-
-    private:
-    template<std::size_t ... Indices>
-    multi_output<Os...> call_impl( std::vector<waveform>&& input_pc, std::index_sequence<Indices...> ) const {
-        multi_output<Os...> output;
-        int expander[] = { 0, ( static_cast<Os&>( output ) = std::get<Indices>(sub_modifier_mc)( std::move(input_pc[Indices]) ), void(), 0 ) ... }; 
-        return output;
-    }
-private:
-    tuple_t const sub_modifier_mc;
-};
-
-template<class ... Ts>
-struct multi_output_deducer{
-    using type = multi_output< typename Ts::output_t...>; 
-};
-
-
-template< class I, class ... Ms, class O = typename multi_output_deducer<Ms...>::type>
-modifier<I, O, Ms...> make_multi_modifier( Ms&& ... sub_modifiers_p ) { return {std::move(sub_modifiers_p)...};}
-
+//form specifier to list of Modules ?
 
 struct amplitude_finder {
     using output_t = amplitude;
-    output_t operator()( waveform&& input_p ) const {
+    output_t operator()( waveform const& input_p ) const {
         double baseline{0}; 
         for( auto i{0}; i < 16 ; ++i ) { baseline += input_p.data.GetBinContent( i +1 ); }
         baseline /= 16;
@@ -118,7 +84,7 @@ struct amplitude_finder {
 
 struct baseline_finder {
     using output_t = baseline;
-    output_t operator()( waveform&& input_p ) const {
+    output_t operator()( waveform const& input_p ) const {
         double baseline{0};
         for( auto i{0}; i < 16 ; ++i ) { baseline += input_p.data.GetBinContent( i +1 ); }
         baseline /= 16;
@@ -129,7 +95,7 @@ struct baseline_finder {
 
 struct cfd_calculator {
     using output_t = cfd_time;
-    output_t operator()(waveform&& input_p) const {
+    output_t operator()(waveform const& input_p) const {
         double fraction = 0.4;
         std::size_t delay = 15;
 
@@ -160,7 +126,7 @@ struct cfd_calculator {
 
 struct charge_integrator {
     using output_t = charge;
-    output_t operator()(waveform&& input_p) const {
+    output_t operator()(waveform const& input_p) const {
 
         double baseline{0};
         for( auto i{0}; i < 16 ; ++i ) { baseline += input_p.data.GetBinContent( i +1 ); }
@@ -174,6 +140,27 @@ struct charge_integrator {
         return result.charge > 0 ? result : charge{0};
     }
 };
+
+struct rise_time_calculator {
+    using output_t = rise_time;
+    output_t operator()( waveform const& input_p ) const {
+        double baseline{0}; 
+        for( auto i{0}; i < 16 ; ++i ) { baseline += input_p.data.GetBinContent( i +1 ); }
+        baseline /= 16;
+
+        double amplitude = input_p.data.GetMinimum() - baseline;
+        double low_cutoff = baseline + amplitude * 0.1 ;
+        double high_cutoff = baseline + amplitude * 0.9 ; 
+
+        double low_time{0}, high_time{0};
+        for( auto i{ input_p.data.GetMinimumBin() - 1 } ; i > 0 ; --i ){
+            if( high_time == 0 && input_p.data.GetBinContent(i) > high_cutoff ){ high_time = input_p.data.GetBinCenter(i); }                
+            if( low_time == 0 && input_p.data.GetBinContent(i) > low_cutoff ){ low_time = input_p.data.GetBinCenter(i); break; }                
+        }
+
+        return { high_time - low_time }; 
+    };
+}; 
 
 } //namespace sf_g
 #endif

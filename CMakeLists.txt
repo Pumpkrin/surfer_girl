@@ -12,7 +12,7 @@ include(RootNewMacros)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib/)
 set(CMAKE_INSTALL_LIBDIR ${CMAKE_BINARY_DIR}/lib/)
 
-root_generate_dictionary( D__surfer_girl writer.hpp LINKDEF linkdef.h)
+root_generate_dictionary( D__surfer_girl LINKDEF linkdef.h)
 
 add_library( data_format SHARED D__surfer_girl.cxx )
 target_include_directories( data_format PUBLIC "${ROOT_INCLUDE_DIRS}")

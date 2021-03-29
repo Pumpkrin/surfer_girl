@@ -22,19 +22,27 @@ int main( int argc, char* argv[] ) {
     auto const event_reader = sf_g::reader< std::ifstream, sf_g::event_data>{};
     auto const waveform_reader = sf_g::reader< std::ifstream, sf_g::raw_waveform>{metadata.channel_count}; 
 
-    auto const m = sf_g::modifier<sf_g::raw_waveform, sf_g::waveform>{metadata};
+    auto const m = sf_g::modifier<sf_g::waveform_specifier>{metadata};
 
     sf_g::data_output< TTree > sink{ output_file };
     auto w = sf_g::writer<sf_g::waveform, TTree>{ sink, metadata.channel_count };
 
     while( !source.end_is_reached() ){
-//         for( auto j{0} ; j < 1; ++j) {
+//         for( auto j{event_reader( source );0} ; j < 1; ++j) {
         event_reader( source );
-//               std::cout << data[0].channel_id << " -- " << data[0].event_id << " -- " << data[0].fcr << " -- " << data[0].baseline << " -- " << data[0].amplitude << " -- " << data[0].charge << " -- " << data[0].leading_edge << " -- " << data[0].trailing_edge  << " -- " << data[0].rate_counter <<  '\n';
-//               for( auto i{0}; i < 1024; ++i) {
-//                   std::cout << data[0].sample_c[i] << " ";
-//               }
-//               std::cout << "\n";
+//        auto timing = event_reader( source );
+//        std::cout << "event: ";
+//        std::cout << timing.event_id << " -- ";  
+//        std::cout << timing.epoch_time << " -- ";
+//        std::cout << timing.time.second << " - " << timing.time.millisecond << " -- ";
+////        std::cout << timing.tdc << '\n';
+//        auto data = waveform_reader( source );
+//        std::cout << "channel: " << data[0].channel_id << " -- " << data[0].event_id << " -- " << data[0].fcr << " -- " << data[0].baseline << " -- " << data[0].amplitude << " -- " << data[0].charge << " -- " << data[0].leading_edge << " -- " << data[0].trailing_edge  << " -- " << data[0].rate_counter <<  '\n';
+//        for( auto i{0}; i < 1024 ; ++i){
+//            std::cout << data[0].sample_c[i] << " ";
+//        }
+//        std::cout << '\n';
+//        m( std::move(data) ) | w;
         waveform_reader( source) | m | w ;
     }
 }
