@@ -115,8 +115,6 @@ struct tree_editor{
     }
     void reserve( std::size_t size_p ) { e_mc.reserve( size_p ); }
     editor& add( editor&& be_p ){
-        std::cout << "add: size " << e_mc.size() << '\n';
-        std::cout << "channel: " << be_p.associated_channel() << '\n';
         if( unpaired_branch( be_p ) ){ e_mc.push_back( std::move(be_p) ); return e_mc.back(); }
         std::cerr << "This branch has been paired up with an other writer already\n";
         return *std::find_if( e_mc.begin(), e_mc.end(),
