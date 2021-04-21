@@ -1,7 +1,8 @@
 #ifndef WRITER_HPP
 #define WRITER_HPP
 
-#include "data_format.hpp"
+#include "data_structure.hpp"
+#include "data_stream.hpp"
 #include "modifier.hpp"
 #include "TTree.h"
 

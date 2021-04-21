@@ -1,7 +1,8 @@
 #ifndef READER_HPP
 #define READER_HPP
 
-#include "data_format.hpp"
+#include "data_structure.hpp"
+#include "data_stream.hpp"
 
 //#include <fstream>
 //#include <string>

@@ -12,20 +12,20 @@ include(RootNewMacros)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib/)
 set(CMAKE_INSTALL_LIBDIR ${CMAKE_BINARY_DIR}/lib/)
 
-root_generate_dictionary( D__surfer_girl writer.hpp LINKDEF linkdef.h)
+root_generate_dictionary( D__surfer_girl data_structure.hpp LINKDEF linkdef.h)
 
-add_library( data_format SHARED D__surfer_girl.cxx )
-target_include_directories( data_format PUBLIC "${ROOT_INCLUDE_DIRS}")
-target_link_libraries( data_format PUBLIC ROOT::Hist)
-set_target_properties( data_format PROPERTIES SUFFIX ".so" )
+add_library( data_structure SHARED D__surfer_girl.cxx )
+target_include_directories( data_structure PUBLIC "${ROOT_INCLUDE_DIRS}")
+target_link_libraries( data_structure PUBLIC ROOT::Hist)
+set_target_properties( data_structure PROPERTIES SUFFIX ".so" )
 
 add_executable( surfer_girl surfer_girl.cpp )
 target_include_directories(surfer_girl PUBLIC "${ROOT_INCLUDE_DIRS}")
-target_link_libraries(surfer_girl PUBLIC ROOT::Core ROOT::Tree ROOT::Hist data_format)
+target_link_libraries(surfer_girl PUBLIC ROOT::Core ROOT::Tree ROOT::Hist data_structure)
 
 add_executable( tree_flip tree_flip.cpp )
 target_include_directories(tree_flip PUBLIC "${ROOT_INCLUDE_DIRS}")
-target_link_libraries(tree_flip PUBLIC ROOT::Core ROOT::Tree ROOT::Hist data_format)
+target_link_libraries(tree_flip PUBLIC ROOT::Core ROOT::Tree ROOT::Hist data_structure)
 
 set( path_to_lib "${CMAKE_INSTALL_LIBDIR}") 
 configure_file( rootlogon.C ${PROJECT_BINARY_DIR}/${scriptname} @ONLY) 

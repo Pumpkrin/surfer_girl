@@ -1,7 +1,8 @@
 #ifndef UTILITIES_HPP
 #define UTILITIES_HPP
 
-#include "data_format.hpp"
+#include "data_structure.hpp"
+#include "data_stream.hpp"
 #include "reader.hpp"
 #include "modifier.hpp"
 #include "writer.hpp"

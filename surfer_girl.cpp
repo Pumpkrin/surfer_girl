@@ -21,7 +21,7 @@ int main( int argc, char* argv[] ) {
 //    std::cout << "metadata: " << metadata.channel_count << " - " << metadata.sampling_period << "\n";
     auto const event_reader = sf_g::reader< std::ifstream, sf_g::event_data>{};
     auto const waveform_reader = sf_g::reader< std::ifstream, sf_g::raw_waveform>{metadata.channel_count}; 
-
+    //add event id somewhere ? -> cross check with the waveforms
     auto const m = sf_g::raw_modifier{metadata};
 
     sf_g::data_output< TTree > sink{ output_file };
