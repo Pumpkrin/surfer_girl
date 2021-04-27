@@ -88,6 +88,10 @@ int main( int argc, char* argv[] ) {
             te.add( sf_g::branch_editor< specifier<flag_set<amplitude_flag, charge_flag, baseline_flag>{}> >{ sp.channel_number, sink } ); 
             break;
                                          }
+        case flag_set< baseline_flag, charge_flag, rise_flag >{} : {
+            te.add( sf_g::branch_editor< specifier<flag_set<baseline_flag, charge_flag, rise_flag >{}> >{ sp.channel_number, sink } ); 
+            break;
+                                         }
         default: {
             std::cerr << "This configuration as not been implemented yet\n";
             break;

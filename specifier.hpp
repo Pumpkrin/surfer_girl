@@ -72,6 +72,7 @@ template<> struct specifier<0x10>{ using pack = details::pack< baseline_finder >
 template<> struct specifier<0x11>{ using pack = details::pack< amplitude_finder, baseline_finder >; using data_t = composite<amplitude, baseline>; };
 template<> struct specifier<0x09>{ using pack = details::pack< amplitude_finder, charge_integrator >; using data_t = composite<amplitude, charge>; };
 template<> struct specifier<0x19>{ using pack = details::pack< amplitude_finder, charge_integrator, baseline_finder >; using data_t = composite<amplitude, charge, baseline>; };
+template<> struct specifier<0x1C>{ using pack = details::pack< baseline_finder, charge_integrator, rise_time_calculator >; using data_t = composite< baseline, charge, rise_time >; };
 
 struct waveform_specifier{ using data_t = waveform; };
 
