@@ -1,6 +1,7 @@
 #ifndef DATA_STRUCTURE_HPP
 #define DATA_STRUCTURE_HPP
 
+#include <array>
 #include <iostream>
 #include "TH1.h"
 
@@ -53,6 +54,11 @@ struct metadata {
 //-------------------------------------------transformed-------------------------------------------
 struct waveform {
     TH1D data; 
+};
+
+struct linked_waveform {
+    TH1D data;
+    std::size_t channel_number;
 };
 
 struct amplitude { double amplitude; void value() const {  std::cout << amplitude << '\n';} };

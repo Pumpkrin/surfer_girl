@@ -5,7 +5,8 @@
 #include "data_stream.hpp"
 
 //#include <fstream>
-//#include <string>
+#include <regex>
+#include <string>
 #include <vector>
 
 
@@ -145,19 +146,20 @@ struct reader< std::ifstream, metadata> {
 };
 
 template<>
-struct reader< TTree, waveform> {
+struct reader< TTree, linked_waveform> {
     using input_t = TTree;
-    using output_t = waveform;
+    using output_t = linked_waveform;
     
     reader(data_input<input_t>& input_p) : 
         channel_count_m{ retrieve_channel_count(input_p) },
+        channel_pairing_mc{ retrieve_channel_pairing( input_p ) },
         waveform_mc{channel_count_m},
         indirector_mc{channel_count_m} 
     {
         for( auto i{0} ; i < channel_count_m ; ++i ) { 
             waveform_mc[i] = std::make_unique<waveform>( waveform{} );
             indirector_mc[i] = waveform_mc[i].get();
-            std::string name = "channel_" + std::to_string(i) + ".";
+            std::string name = "channel_" + std::to_string(channel_pairing_mc[i]) + ".";
             input_p.input_h->SetBranchAddress( name.c_str(), &indirector_mc[i] ); 
         }
     }
@@ -166,7 +168,8 @@ struct reader< TTree, waveform> {
         std::vector< output_t > output_c{channel_count_m}; 
         input_p.load_entry();
         for( auto i{0} ; i < channel_count_m ; ++i ) { 
-            output_c[i] = *waveform_mc[i]; 
+            output_c[i].data = waveform_mc[i]->data; 
+            output_c[i].channel_number =  channel_pairing_mc[i];
         }
         return output_c;
     }
@@ -174,9 +177,22 @@ private:
     std::size_t retrieve_channel_count(data_input<input_t>& input_p) const {
         return input_p.input_h->GetListOfBranches()->GetEntries();
     }
+    std::vector<std::size_t> retrieve_channel_pairing(data_input<input_t>& input_p) const {
+        std::vector<std::size_t> result_c;
+        auto * l_h = input_p.input_h->GetListOfBranches();
+        result_c.reserve( channel_count_m );
+        for( auto * b_h : *l_h){ 
+            std::string name{ b_h->GetName() };
+            std::smatch result;
+            std::regex_search( name, result, std::regex{"[0-9]"});
+            result_c.push_back( static_cast<std::size_t>( std::stoi(result[0].str() ) ) );
+        }
+        return result_c;
+    }
 
 private:
     std::size_t const channel_count_m;
+    std::vector< std::size_t > channel_pairing_mc;
     std::vector< std::unique_ptr<waveform> > waveform_mc;
     std::vector< waveform* > indirector_mc;
 };

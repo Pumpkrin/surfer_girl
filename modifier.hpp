@@ -5,17 +5,19 @@
 #include "data_structure.hpp"
 
 #include <tuple>
+#include <vector>
+#include <string>
+#include <regex>
 
 namespace sf_g {
 struct raw_modifier {
     raw_modifier( metadata m_p) : metadata_m{ m_p } {}
     
-    std::vector<waveform> operator()(std::vector<raw_waveform>&& data_pc) const {
-        std::vector<waveform> result_c{ static_cast<std::size_t>(metadata_m.channel_count) };
-        for( auto& result : result_c) { 
-            result.data = TH1D{ "", ";time;ADC", 1024, -metadata_m.sampling_period/2, (1024-1)*metadata_m.sampling_period+ metadata_m.sampling_period/2 };
-        }
+    std::vector<linked_waveform> operator()(std::vector<raw_waveform>&& data_pc) const {
+        std::vector<linked_waveform> result_c{ static_cast<std::size_t>(metadata_m.channel_count) };
         for( auto k{0}; k < metadata_m.channel_count ; ++k ){ 
+            result_c[k].data = TH1D{ "", ";time;ADC", 1024, -metadata_m.sampling_period/2, (1024-1)*metadata_m.sampling_period+ metadata_m.sampling_period/2 };
+            result_c[k].channel_number = data_pc[k].channel_id;
             for( auto i{0}; i < 1024 ; ++i ){
                 result_c[k].data.SetBinContent( i+1, data_pc[k].sample_c[i] );
             }
@@ -25,6 +27,61 @@ struct raw_modifier {
 
 private:
     metadata const metadata_m;
+};
+
+struct cut_modifier{
+    explicit cut_modifier( std::string const& input_file_p ) :
+        channel_number_m{ retrieve_channel_number( input_file_p ) },
+        event_mc{ retrieve_events( input_file_p ) }
+    {}
+
+    std::vector<linked_waveform> operator()( std::vector< linked_waveform >&& input_pc ) {
+        std::vector< linked_waveform > result_c;
+        result_c.reserve( input_pc.size() );
+        if( counter_m++ != event_mc.front() ){ return result_c; }  
+        for( auto && input : input_pc ){ //customize behaviour using pointer to member function trick ?
+            if( input.channel_number == channel_number_m ){ result_c.emplace_back( std::move(input) ); }
+        }
+        event_mc.erase( event_mc.begin() );
+        return result_c;            
+    }
+
+private:
+    std::vector<std::size_t> retrieve_events( std::string const& input_file_p ) {
+        std::ifstream input{ input_file_p, std::ios_base::binary };
+        if( !input.is_open() ){ throw std::invalid_argument{ "unable to read the given file" }; }
+        auto compute_length_l = [&input](){ 
+            input.seekg(0, std::ios_base::end );
+            auto result = input.tellg();
+            input.seekg(0, std::ios_base::beg);
+            return result;
+                                          };
+        auto const sentinel = compute_length_l();
+        auto end_is_reached_l = [&input, &sentinel](){
+            return input.eof() || ((sentinel - input.tellg()) == 0);
+                                                     }; 
+        
+        std::vector< std::size_t > result_c;
+        result_c.reserve( sentinel / sizeof(int) );
+        while( !end_is_reached_l() ){
+            int event;
+            input.read(reinterpret_cast<char*>(&event), sizeof event );
+            result_c.push_back( event);  
+        } 
+        return result_c;
+    }
+
+    std::size_t retrieve_channel_number( std::string const& input_file_p) const {
+        std::smatch result;
+        std::regex_search( input_file_p, result, std::regex{"[0-9](?=_!?[abcrt])"});
+        std::cout << "channel_number: " << result[0].str() << std::endl;
+        return static_cast<std::size_t>( std::stoi(result[0].str()) );
+    }
+
+private:
+    std::size_t const channel_number_m;
+    std::vector<std::size_t> event_mc;
+    std::size_t counter_m{0};
 };
 
 namespace details{
@@ -39,12 +96,12 @@ struct modifier_impl< details::pack< Modules...> >{
     using output_t = composite< typename Modules::output_t... >;
 
     modifier_impl() = default;
-    output_t operator()( waveform const& input_p ) const {
+    output_t operator()( linked_waveform const& input_p ) const {
         return modify_impl( input_p, std::make_index_sequence<sizeof...(Modules)>{} );
     }
     private:
     template<std::size_t ... Indices>
-    output_t modify_impl( waveform const& input_p, std::index_sequence<Indices...> ) const {
+    output_t modify_impl( linked_waveform const& input_p, std::index_sequence<Indices...> ) const {
         output_t output;
         int expander[] = { 0, ( static_cast< typename std::tuple_element_t<Indices, tuple_t>::output_t&>( output ) = std::get<Indices>(module_mc)( input_p ), void(), 0 ) ... }; 
         return output;
@@ -58,7 +115,7 @@ template< class M >
 struct modifier_impl< details::pack<M> >{
     using output_t = typename M::output_t;
 
-    output_t operator()( waveform const& input_p ) const {
+    output_t operator()( linked_waveform const& input_p ) const {
         return module_m( input_p );
     }
 
@@ -74,7 +131,7 @@ using modifier = modifier_impl< typename Specifier::pack >;
 
 struct amplitude_finder {
     using output_t = amplitude;
-    output_t operator()( waveform const& input_p ) const {
+    output_t operator()( linked_waveform const& input_p ) const {
         double baseline{0}; 
         for( auto i{0}; i < 16 ; ++i ) { baseline += input_p.data.GetBinContent( i +1 ); }
         baseline /= 16;
@@ -84,7 +141,7 @@ struct amplitude_finder {
 
 struct baseline_finder {
     using output_t = baseline;
-    output_t operator()( waveform const& input_p ) const {
+    output_t operator()( linked_waveform const& input_p ) const {
         double baseline{0};
         for( auto i{0}; i < 16 ; ++i ) { baseline += input_p.data.GetBinContent( i +1 ); }
         baseline /= 16;
@@ -95,7 +152,7 @@ struct baseline_finder {
 
 struct cfd_calculator {
     using output_t = cfd_time;
-    output_t operator()(waveform const& input_p) const {
+    output_t operator()(linked_waveform const& input_p) const {
         double fraction = 0.4;
         std::size_t delay = 15;
 
@@ -126,7 +183,7 @@ struct cfd_calculator {
 
 struct charge_integrator {
     using output_t = charge;
-    output_t operator()(waveform const& input_p) const {
+    output_t operator()(linked_waveform const& input_p) const {
 
         double baseline{0};
         for( auto i{0}; i < 16 ; ++i ) { baseline += input_p.data.GetBinContent( i +1 ); }
@@ -143,7 +200,7 @@ struct charge_integrator {
 
 struct rise_time_calculator {
     using output_t = rise_time;
-    output_t operator()( waveform const& input_p ) const {
+    output_t operator()( linked_waveform const& input_p ) const {
         double baseline{0}; 
         for( auto i{0}; i < 16 ; ++i ) { baseline += input_p.data.GetBinContent( i +1 ); }
         baseline /= 16;

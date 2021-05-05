@@ -9,11 +9,4 @@
 #pragma link C++ class sf_g::composite< sf_g::amplitude, sf_g::baseline >;
 #pragma link C++ class sf_g::composite< sf_g::rise_time >;
 
-#pragma link C++ function exclude_waveform< sf_g::composite< sf_g::amplitude, sf_g::baseline > >;
-#pragma link C++ class sf_g::amplitude_tag;
-#pragma link C++ class sf_g::baseline_tag;
-#pragma link C++ class sf_g::cfd_time_tag;
-#pragma link C++ class sf_g::charge_tag;
-#pragma link C++ class sf_g::rise_time_tag;
-
 #endif

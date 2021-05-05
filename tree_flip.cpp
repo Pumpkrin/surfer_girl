@@ -101,7 +101,7 @@ int main( int argc, char* argv[] ) {
     for( auto& input_file : input_file_c ){ 
         std::cout << "processing: " << input_file << '\n'; 
         sf_g::data_input<TTree> source{ input_file };           
-        auto r = sf_g::reader<TTree, sf_g::waveform>{ source }; //channel count can be deduced from number of keys in tree
+        auto r = sf_g::reader<TTree, sf_g::linked_waveform>{ source }; //channel count can be deduced from number of keys in tree
         //on reader, always retrieve everything
         
         while( !source.end_is_reached() ){

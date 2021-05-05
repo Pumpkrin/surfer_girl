@@ -28,6 +28,14 @@ template< class RO >
 constexpr auto operator|( RO&& reader_output_p, raw_modifier const& m_p) {
    return m_p( std::move(reader_output_p) );
 } 
+template< class RO > 
+constexpr auto operator|( RO&& reader_output_p, cut_modifier& m_p) {
+   return m_p( std::move(reader_output_p) );
+} 
+template< class RO >
+constexpr auto operator|( RO&& reader_output_p, cut_modifier const& m_p) {
+   return m_p( std::move(reader_output_p) );
+} 
 
 template< class MO,
           class S>

@@ -12,7 +12,7 @@ include(RootNewMacros)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib/)
 set(CMAKE_INSTALL_LIBDIR ${CMAKE_BINARY_DIR}/lib/)
 
-root_generate_dictionary( D__surfer_girl data_structure.hpp exclude_waveform.hpp LINKDEF linkdef.h)
+root_generate_dictionary( D__surfer_girl data_structure.hpp LINKDEF linkdef.h)
 
 add_library( data_structure SHARED D__surfer_girl.cxx )
 target_include_directories( data_structure PUBLIC "${ROOT_INCLUDE_DIRS}")
@@ -27,5 +27,12 @@ add_executable( tree_flip tree_flip.cpp )
 target_include_directories(tree_flip PUBLIC "${ROOT_INCLUDE_DIRS}")
 target_link_libraries(tree_flip PUBLIC ROOT::Core ROOT::Tree ROOT::Hist data_structure)
 
+add_executable( tree_grubbing tree_grubbing.cpp )
+target_include_directories(tree_grubbing PUBLIC "${ROOT_INCLUDE_DIRS}")
+target_link_libraries(tree_grubbing PUBLIC ROOT::Core ROOT::Tree ROOT::Hist data_structure)
+
 set( path_to_lib "${CMAKE_INSTALL_LIBDIR}") 
-configure_file( rootlogon.C ${PROJECT_BINARY_DIR}/${scriptname} @ONLY) 
+set( path_to_macro "${CMAKE_BINARY_DIR}/macros/") 
+configure_file( rootlogon.C rootlogon.C @ONLY) 
+configure_file( reprocess_waveform.hpp macros/reprocess_waveform.hpp COPYONLY ) 
+

@@ -51,7 +51,7 @@ private:
     
     constexpr uint8_t compute_value() const {
         uint8_t result = 0;
-        int expander[] = { 0, ( result |= 1UL << Ts::shift , void(), 0) ... };
+        int expander[] = { 0, ( result |= 1UL << Ts::shift , 0) ... };
         return result;
         // return 1;
     }
