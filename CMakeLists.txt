@@ -35,4 +35,5 @@ set( path_to_lib "${CMAKE_INSTALL_LIBDIR}")
 set( path_to_macro "${CMAKE_BINARY_DIR}/macros/") 
 configure_file( rootlogon.C rootlogon.C @ONLY) 
 configure_file( reprocess_waveform.hpp macros/reprocess_waveform.hpp COPYONLY ) 
+configure_file( process_directory.sh macros/process_directory.sh COPYONLY ) 
 

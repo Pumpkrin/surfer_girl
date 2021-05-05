@@ -8,14 +8,19 @@
 
 
 namespace sf_g{
-struct amplitude_tag { constexpr static const char name[] = "a"; };
-struct baseline_tag { constexpr static const char name[] = "b"; };
+struct tag{};    
+struct amplitude_tag : tag { constexpr static const char name[] = "a"; };
+constexpr const char amplitude_tag::name[];
+struct baseline_tag : tag { constexpr static const char name[] = "b"; };
 constexpr const char baseline_tag::name[];
-struct cfd_time_tag { constexpr static const char name[] = "t";};
-struct charge_tag { constexpr static const char name[] = "c";};    
+struct cfd_time_tag : tag { constexpr static const char name[] = "t";};
+constexpr const char cfd_time_tag::name[];
+struct charge_tag : tag { constexpr static const char name[] = "c";};    
 constexpr const char charge_tag::name[];
-struct rise_time_tag {constexpr static const char name[] = "r";};    
-struct fall_time_tag {constexpr static const char name[] = "f";};    
+struct rise_time_tag : tag {constexpr static const char name[] = "r";};    
+constexpr const char rise_time_tag::name[];
+struct fall_time_tag : tag {constexpr static const char name[] = "f";};    
+constexpr const char fall_time_tag::name[];
 
 template<class T, class I> struct retrieve_value_impl{};
 template<class I> 
@@ -32,6 +37,7 @@ struct retrieve_value_impl<charge_tag, I>{
 };
 
 template<class T, class I> double retrieve_value( I const& input_p ) {
+    static_assert( std::is_base_of< tag, T >::value, "this function should be used with a tag class : i.e. *****_tag" );
     return retrieve_value_impl<T, I>{}( input_p );
 }
 
@@ -69,9 +75,9 @@ struct cut{
     constexpr cut( double lower_limit_p, double upper_limit_p ) : lower_limit_m{lower_limit_p}, upper_limit_m{ upper_limit_p }{} 
     std::string name() const{ 
         std::string result = std::string{"_"} + S::name + T::name + "]";  
-        auto const size = static_cast<std::size_t>( std::snprintf( nullptr, 0, "%.2e:%.2e[", lower_limit_m, upper_limit_m ) + 1);
+        auto const size = static_cast<std::size_t>( std::snprintf( nullptr, 0, "%.2e-%.2e[", lower_limit_m, upper_limit_m ) + 1);
         char buffer[ size ];
-        std::snprintf( buffer, size, "%.2e:%.2e[", lower_limit_m, upper_limit_m );
+        std::snprintf( buffer, size, "%.2e-%.2e[", lower_limit_m, upper_limit_m );
         result += std::string{buffer, size -1};
         return result; 
     }
@@ -124,7 +130,7 @@ struct cut_vector{
 
 }//namespace sf_g
 
-//specification format is : file.root:branch_name.
+//specification format is : path/to/file.root:branch_name.
 template< class I >
 void reprocess_waveform( std::string const& specification_p, sf_g::cut_vector<I> const& cv_p ) {
     auto get_part_l = []( std::string const& input_p , std::regex regex_p ){
