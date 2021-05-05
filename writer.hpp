@@ -30,15 +30,11 @@ private:
     };
 
     void link_branches( std::vector<linked_waveform> && input_pc ){
-        std::cout << "link_branches_input: "<< input_pc.size() << std::endl; 
         for( auto && input : input_pc) {
             auto * data_h = linker_m.add( input.channel_number );
-            std::cout << "entry_added"<< std::endl;
             std::string name = "channel_" + std::to_string(input.channel_number) + ".";
             tree_m.branch( name.c_str(), data_h ); 
-            std::cout << "branch_added: " << name << std::endl;
             linker_m( input.channel_number )->data = std::move(input.data);
-            std::cout << "data_filled"<< std::endl;
         } 
         current_function_h = &raw_writer::fill;
     };

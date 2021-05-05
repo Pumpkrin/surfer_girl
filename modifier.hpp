@@ -74,7 +74,6 @@ private:
     std::size_t retrieve_channel_number( std::string const& input_file_p) const {
         std::smatch result;
         std::regex_search( input_file_p, result, std::regex{"[0-9](?=_!?[abcrt])"});
-        std::cout << "channel_number: " << result[0].str() << std::endl;
         return static_cast<std::size_t>( std::stoi(result[0].str()) );
     }
 
