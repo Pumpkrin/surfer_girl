@@ -30,17 +30,28 @@ private:
     };
 
     void link_branches( std::vector<linked_waveform> && input_pc ){
-        for( auto && input : input_pc) {
-            auto * data_h = linker_m.add( input.channel_number );
-            std::string name = "channel_" + std::to_string(input.channel_number) + ".";
+//        for( auto && input : input_pc) {
+//            auto * data_h = linker_m.add( input.channel_number );
+//            std::string name = "channel_" + std::to_string(input.channel_number) + ".";
+//            std::cout << name << '\n';
+//            tree_m.branch( name.c_str(), data_h ); 
+//            linker_m( input.channel_number )->data = std::move(input.data);
+//        } 
+        for( auto i{0}; i < input_pc.size() ; ++i) {
+            auto * data_h = linker_m.add( i );
+            std::string name = "channel_" + std::to_string(i) + ".";
+            std::cout << name << '\n';
             tree_m.branch( name.c_str(), data_h ); 
-            linker_m( input.channel_number )->data = std::move(input.data);
+            linker_m( i )->data = std::move(input_pc[i].data);
         } 
         current_function_h = &raw_writer::fill;
     };
     void fill( std::vector<linked_waveform> && input_pc) {
-        for( auto && input : input_pc) {
-           linker_m( input.channel_number )->data = std::move( input.data ) ;
+//        for( auto && input : input_pc) {
+//           linker_m( input.channel_number )->data = std::move( input.data ) ;
+//        }
+        for( auto i{0}; i < input_pc.size() ; ++i ) {
+           linker_m( i )->data = std::move( input_pc[i].data ) ;
         }
     };
 
