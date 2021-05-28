@@ -53,7 +53,11 @@ struct data_input<TTree> {
 
 private:
     TTree* retrieve_tree() {
+#if ROOT_VERSION_CODE > ROOT_VERSION(6,22,0)
+        auto * current_directory_h = TDirectory::CurrentDirectory().load();
+#else
         auto * current_directory_h = TDirectory::CurrentDirectory();
+#endif
         auto& key_c = *current_directory_h->GetListOfKeys();
         for( auto * key_h : key_c ){
             auto * tree_h = dynamic_cast<TTree*>( file_m.Get( key_h->GetName() ));
