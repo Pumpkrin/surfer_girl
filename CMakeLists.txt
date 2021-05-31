@@ -31,9 +31,15 @@ add_executable( tree_grubbing tree_grubbing.cpp )
 target_include_directories(tree_grubbing PUBLIC "${ROOT_INCLUDE_DIRS}")
 target_link_libraries(tree_grubbing PUBLIC ROOT::Core ROOT::Tree ROOT::Hist data_structure)
 
+add_executable( energy_loss energy_loss.cpp )
+target_include_directories(energy_loss PUBLIC "${ROOT_INCLUDE_DIRS}")
+target_link_libraries(energy_loss PUBLIC ROOT::Core ROOT::Graf)
+
 set( path_to_lib "${CMAKE_INSTALL_LIBDIR}") 
 set( path_to_macro "${CMAKE_BINARY_DIR}/macros/") 
 configure_file( rootlogon.C rootlogon.C @ONLY) 
 configure_file( reprocess_waveform.hpp macros/reprocess_waveform.hpp COPYONLY ) 
+configure_file( fitter.hpp macros/fitter.hpp COPYONLY ) 
 configure_file( process_directory.sh macros/process_directory.sh COPYONLY ) 
+configure_file( data/p_aluminum.txt data/p_aluminum.txt COPYONLY ) 
 
