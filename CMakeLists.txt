@@ -45,6 +45,7 @@ configure_file( rootlogon.C rootlogon.C @ONLY)
 configure_file( reprocess_waveform.hpp macros/reprocess_waveform.hpp COPYONLY ) 
 configure_file( calibration_tools.hpp macros/calibration_tools.hpp COPYONLY ) 
 configure_file( process_directory.sh macros/process_directory.sh COPYONLY ) 
+configure_file( process_file.sh macros/process_file.sh COPYONLY ) 
 configure_file( data/p_aluminum.txt data/p_aluminum.txt COPYONLY ) 
 configure_file( data/p_air.txt data/p_air.txt COPYONLY ) 
 

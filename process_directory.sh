@@ -8,6 +8,7 @@ extract_files(){
         mkdir "$repname/waveform"
         mkdir "$repname/measurement"
         mkdir "$repname/cut"
+        mkdir "$repname/calibration"
     fi 
     modifier="$2"
     for item in $rep/*; do
@@ -16,7 +17,9 @@ extract_files(){
             temp="${BASH_REMATCH%_Data}"
             name="${temp#Run_}.root"
             echo "processing: ${name}"
+            echo "surfer_girl: "
            ./surfer_girl -in ${item} -out "${repname}/waveform/${name}"
+            echo "tree_flip: "
            ./tree_flip -in "${repname}/waveform/${name}" -out "${repname}/measurement/${name}" -mod "$modifier"
         fi
     done

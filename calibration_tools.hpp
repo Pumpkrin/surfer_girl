@@ -85,7 +85,7 @@ void fit(std::string filename_p) {
 }
 
 void store_fit( std::string output_p ) {
-#if ROOT_VERSION_CODE > ROOT_VERSION(6,22,0)
+#if ROOT_VERSION_CODE >= ROOT_VERSION(6,24,0)
     auto * current_directory_h = TDirectory::CurrentDirectory().load();
 #else
     auto * current_directory_h = TDirectory::CurrentDirectory();
