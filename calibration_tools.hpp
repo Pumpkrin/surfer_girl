@@ -1,5 +1,5 @@
-#ifndef FITTER_HPP
-#define FITTER_HPP
+#ifndef CALIBRATION_TOOLS_HPP
+#define CALIBRATION_TOOLS_HPP
 
 #include <regex>
 #include <string> 
@@ -32,12 +32,12 @@ constexpr double get_value( F* composite_ph){
 template<class T> struct new_histogram_impl{};
 template<>
 struct new_histogram_impl<charge>{
-    TH1D * operator()() const { return new TH1D{"charge", ";charge (a.u.);count", 1000, 0, 2e9};} 
+    TH1D * operator()() const { return new TH1D{"histogram", ";charge (a.u.);count", 1000, 0, 2e9};} 
 //    TH1D * operator()() const { return new TH1D{"charge", ";charge (a.u.);count", 1000, 0, 2e8};} 
 };        
 template<>
 struct new_histogram_impl<amplitude>{
-    TH1D * operator()() const { return new TH1D{"amplitude", ";amplitude (a.u.);count", 1000, 0, 10000};} 
+    TH1D * operator()() const { return new TH1D{"histogram", ";amplitude (a.u.);count", 1000, 0, 10000};} 
 };        
 template<class T>
 TH1D* new_histogram(){
@@ -74,7 +74,7 @@ TH1D* extract( std::string filename_p ) {
 }//namespace sf_g
 
 template<class F, class T>
-void fit(std::string filename_p, std::string output_p) {
+void fit(std::string filename_p) {
     TCanvas * c_h = new TCanvas{};
     auto * h_h = sf_g::extract<F, T>(filename_p) ;
     h_h->Draw("same");
@@ -82,6 +82,21 @@ void fit(std::string filename_p, std::string output_p) {
     double peak = h_h->GetBinCenter( h_h->GetMaximumBin() ); 
     TF1 f{ "f", "gaus", 0.9 * peak, 1.1 * peak};
     auto fit = h_h->Fit(&f, "RS");
+}
+
+void store_fit( std::string output_p ) {
+#if ROOT_VERSION_CODE > ROOT_VERSION(6,22,0)
+    auto * current_directory_h = TDirectory::CurrentDirectory().load();
+#else
+    auto * current_directory_h = TDirectory::CurrentDirectory();
+#endif
+    auto& object_c = *current_directory_h->GetList();
+    TH1D* h_h;
+    for( auto * object_h : object_c ){
+         if(std::string{ object_h->GetName() }== "histogram" ) { h_h = dynamic_cast<TH1D*>( object_h ); }
+    }
+    auto * f_h = h_h->GetFunction("f");
+    auto fit = h_h->Fit(f_h, "RS");
 
     std::ofstream output{ output_p };
     auto* old_cout_buffer = std::cout.rdbuf();
