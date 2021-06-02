@@ -32,7 +32,8 @@ constexpr double get_value( F* composite_ph){
 template<class T> struct new_histogram_impl{};
 template<>
 struct new_histogram_impl<charge>{
-    TH1D * operator()() const { return new TH1D{"charge", ";charge (a.u.);count", 1000, 0, 200e6};} 
+    TH1D * operator()() const { return new TH1D{"charge", ";charge (a.u.);count", 1000, 0, 2e9};} 
+//    TH1D * operator()() const { return new TH1D{"charge", ";charge (a.u.);count", 1000, 0, 2e8};} 
 };        
 template<>
 struct new_histogram_impl<amplitude>{
@@ -73,17 +74,52 @@ TH1D* extract( std::string filename_p ) {
 }//namespace sf_g
 
 template<class F, class T>
-void fit(std::string filename_p) {
+void fit(std::string filename_p, std::string output_p) {
     TCanvas * c_h = new TCanvas{};
     auto * h_h = sf_g::extract<F, T>(filename_p) ;
     h_h->Draw("same");
 
     double peak = h_h->GetBinCenter( h_h->GetMaximumBin() ); 
     TF1 f{ "f", "gaus", 0.9 * peak, 1.1 * peak};
-    h_h->Fit(&f, "R");
+    auto fit = h_h->Fit(&f, "RS");
+
+    std::ofstream output{ output_p };
+    auto* old_cout_buffer = std::cout.rdbuf();
+    std::cout.rdbuf( output.rdbuf() );
+    fit->Print();
+    std::cout.rdbuf( old_cout_buffer );
 }
 
 
+template<class F, class T>
+void extract_histogram(std::string filename_p) {
+    TCanvas * c_h = new TCanvas{};
+    auto * h_h = sf_g::extract<F, T>(filename_p) ;
+    h_h->Draw("same");
+}
+
+void draw_calibration_curve( std::string filename_p) {
+    TFile file(filename_p.c_str());
+    auto * g_h = static_cast< TGraphErrors*>( file.Get("curve") );
+    file.Close();
+
+    auto * c_h = new TCanvas{};
+    gStyle->SetOptStat(0);
+    auto * energy_array_h = g_h->GetX();
+    std::vector<double> energy_c;
+    energy_c.assign( energy_array_h, energy_array_h + g_h->GetN());
+    auto lower_limit = *std::min_element( energy_c.begin(), energy_c.end() );
+    auto upper_limit = *std::max_element( energy_c.begin(), energy_c.end() );
+    auto * frame_h = new TH1D{"frame", ";Energy (MeV); charge(a. u.)", 1, 0.8*lower_limit, 1.2*upper_limit};
+    auto * mean_array_h = g_h->GetY();
+    std::vector<double> mean_c;
+    mean_c.assign( mean_array_h, mean_array_h + g_h->GetN());
+    auto upper_limit_y = *std::max_element( mean_c.begin(), mean_c.end() );
+    frame_h->GetYaxis()->SetRangeUser(0, 1.2* upper_limit_y);
+    frame_h->Draw();
+    g_h->SetMarkerStyle(21);
+    g_h->Draw("ep same");
+}
 
 #endif
 

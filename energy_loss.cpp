@@ -56,7 +56,7 @@ int main( int argc, char* argv[] ) {
     
     double step = 10, position = 0, thickness = 0, density = 2.7 ;
     value_and_error energy;
-    std::string input_file;
+    std::string input_file{ "data/p_aluminum.txt"};
     if(argc < 7){ std::cerr << "energy_loss should be called the following way: ./energy_loss -in input_file.txt -thick value -ene value \n"; return 1; }
     else{     
         for(auto i{0}; i < argc; ++i) {
@@ -75,12 +75,12 @@ int main( int argc, char* argv[] ) {
         energy.error += pow( current_sp.error * density * step * 1e-4, 2 ); 
         position+=step;
     }
-    auto current_sp = sp.evaluate( energy.value);
-    energy.value -= current_sp.value * density * (thickness - position)  * 1e-4;        
-    energy.error += pow( current_sp.error * density * (thickness - position) * 1e-4, 2 ); 
-    energy.error = sqrt( energy.error);
 
     if(energy.value>0){
+        auto current_sp = sp.evaluate( energy.value);
+        energy.value -= current_sp.value * density * (thickness - position)  * 1e-4;        
+        energy.error += pow( current_sp.error * density * (thickness - position) * 1e-4, 2 ); 
+        energy.error = sqrt( energy.error);
         std::cout << "energy_remaining: " << energy.value << " +/- " << energy.error << " MeV\n";
     } else { std::cout << "no remaining energy\n"; }
         
