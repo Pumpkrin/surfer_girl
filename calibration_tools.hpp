@@ -32,11 +32,11 @@ constexpr double get_value( F* composite_ph){
 template<class T> struct new_histogram_impl{};
 template<>
 struct new_histogram_impl<charge>{
-    TH1D * operator()( double maximum_p ) const { return new TH1D{"histogram", ";charge (a.u.);count", maximum_p * 1.1e-5, 0, maximum_p * 1.1};} 
+    TH1D * operator()( double maximum_p ) const { return new TH1D{"histogram", ";charge (a.u.);count", static_cast<int>(maximum_p * 1.1e-5), 0, maximum_p * 1.1};} 
 };        
 template<>
 struct new_histogram_impl<amplitude>{
-    TH1D * operator()( double maximum_p ) const { return new TH1D{"histogram", ";amplitude (a.u.);count", maximum_p * 1.1e-5 , 0, maximum_p * 1.1};} 
+    TH1D * operator()( double maximum_p ) const { return new TH1D{"histogram", ";amplitude (a.u.);count", static_cast<int>(maximum_p * 1.1e-5) , 0, maximum_p * 1.1};} 
 };        
 template<class T>
 TH1D* new_histogram( double maximum_p ){
