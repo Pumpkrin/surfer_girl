@@ -32,16 +32,15 @@ constexpr double get_value( F* composite_ph){
 template<class T> struct new_histogram_impl{};
 template<>
 struct new_histogram_impl<charge>{
-//    TH1D * operator()() const { return new TH1D{"histogram", ";charge (a.u.);count", 1000, 0, 2e9};} 
-    TH1D * operator()() const { return new TH1D{"histogram", ";charge (a.u.);count", 1000, 0, 4e8};} 
+    TH1D * operator()( double maximum_p ) const { return new TH1D{"histogram", ";charge (a.u.);count", maximum_p * 1.1e-5, 0, maximum_p * 1.1};} 
 };        
 template<>
 struct new_histogram_impl<amplitude>{
-    TH1D * operator()() const { return new TH1D{"histogram", ";amplitude (a.u.);count", 1000, 0, 10000};} 
+    TH1D * operator()( double maximum_p ) const { return new TH1D{"histogram", ";amplitude (a.u.);count", maximum_p * 1.1e-5 , 0, maximum_p * 1.1};} 
 };        
 template<class T>
-TH1D* new_histogram(){
-    return new_histogram_impl<T>{}();
+TH1D* new_histogram( double maximum_p ){
+    return new_histogram_impl<T>{}( maximum_p );
 }
 
 template<class F, class T>    
@@ -58,8 +57,14 @@ TH1D* extract( std::string filename_p ) {
     TTree* tree_h = static_cast<TTree*>( file.Get("data") );
     auto *composite_h = new F{};
     tree_h->SetBranchAddress( get_part_l( filename_p, std::move(branch_regex) ).c_str(), &composite_h);
+    double maximum{0};
+    for(auto i{0}; i < tree_h->GetEntries(); ++i){
+        tree_h->GetEntry(i);
+        auto current_value = get_value<F, T>(composite_h);
+        if( current_value > maximum ){ maximum = current_value; } 
+    }
 
-    auto * h_h = new_histogram<T>();
+    auto * h_h = new_histogram<T>( maximum ); 
     h_h->SetDirectory( gROOT );
 
     for(auto i{0}; i < tree_h->GetEntries(); ++i){
