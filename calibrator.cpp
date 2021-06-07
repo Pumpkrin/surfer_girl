@@ -97,8 +97,10 @@ int main( int argc, char* argv[]) {
     }
        
 //    TF1 f{"f", "[0]+x*[1]", 0, energy_c.back() * 1.2};
-    TF1 f{"f", "[0]+x*[1]", 0, 24 };
-    g_h->Fit(&f, "R");
+    if( !source_file_c.empty() ) { 
+        TF1 f{"f", "[0]+x*[1]", 0, 24 };
+        g_h->Fit(&f, "R");
+    }
 
     for( auto const& file : beam_file_c ) {
         std::cout << file << '\n';
