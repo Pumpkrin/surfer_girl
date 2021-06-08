@@ -141,5 +141,67 @@ void draw_calibration_curve( std::string filename_p) {
     g_h->Draw("ep same");
 }
 
+void look_at_waveforms( std::string filename_p ){
+    auto get_part_l = []( std::string const& input_p , std::regex regex_p ){
+                            std::smatch result;
+                            std::regex_search( input_p, result, regex_p);
+                            return result[0].str();
+                                                              };
+    auto file_regex = std::regex{"[^:]+"}; 
+    auto branch_regex = std::regex{"[^:]+\\.$"};
+
+    auto* file_h = new TFile( get_part_l(filename_p, std::move(file_regex)).c_str()  );
+    TTree* tree_h = static_cast<TTree*>( file_h->Get("data") );
+    auto *w_h = new sf_g::waveform{};
+    auto branch_name = get_part_l( filename_p, std::move(branch_regex) );
+    tree_h->SetBranchAddress( branch_name.c_str(), &w_h);
+    tree_h->GetEntry(0);
+    gROOT->cd();
+    auto * h_h = new TH1D{ w_h->data };
+    h_h->SetName( "h" ) ;
+    h_h->SetTitle( std::string{ branch_name + "_0" }.c_str() ); 
+
+    auto * c_h = new TCanvas{};
+    c_h->Divide( 1, 2);
+    auto * hist_pad_h = c_h->cd(1);
+    hist_pad_h->SetPad( 0, 0.21, 1, 1 );
+    h_h->Draw();
+    delete w_h;    
+    auto * slider_pad_h = c_h->cd(2);
+    slider_pad_h->SetPad(0, 0, 1, 0.2);
+    auto * slider_h = new TSlider("slider", "", 0.1, 0.3, 0.9, 0.7); 
+    slider_h->SetRange(0., 0.1);
+    slider_h->SetMethod( "output_waveform( )");
+}
+
+void output_waveform() {
+    auto & canvas_c = *gROOT->GetListOfCanvases();
+    auto * c_h = static_cast<TCanvas*>( canvas_c.At( canvas_c.GetLast() ) );
+    auto * hist_pad_h = c_h->cd(1);
+    auto * hist_h = static_cast<TH1D*>(hist_pad_h->FindObject( "h" ));
+
+    auto& file_c = *gROOT->GetListOfFiles();
+    auto * file_h = static_cast<TFile*>( file_c.At( file_c.GetLast() ) );
+    TTree* tree_h = static_cast<TTree*>( file_h->Get("data") );
+    auto *w_h = new sf_g::waveform{};
+    auto branch_name = std::string{ hist_h->GetTitle() };
+    branch_name.erase( branch_name.find_last_of( "_" ) ); 
+    tree_h->SetBranchAddress( branch_name.c_str() , &w_h);
+
+    auto * slider_h = static_cast<TSlider*>(c_h->FindObject("slider")); 
+    auto size = slider_h->GetMaximum() - slider_h->GetMinimum();  
+    auto entry = static_cast<int>( slider_h->GetMinimum() * (tree_h->GetEntries()-1)/(1-size) ); 
+    tree_h->GetEntry( entry );
+     
+    gROOT->cd();
+    hist_h = new TH1D{ w_h->data };
+    hist_h->SetName("h");
+    hist_h->SetTitle( std::string{ branch_name + "_" + entry }.c_str() );
+    hist_pad_h->cd();
+    hist_h->Draw();
+    delete w_h;
+}
+
+
 #endif
 
