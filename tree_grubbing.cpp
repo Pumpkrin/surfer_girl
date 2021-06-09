@@ -23,7 +23,7 @@ int main( int argc, char* argv[]) {
     auto output_file = waveform_repertory + get_part_l( cut_file, std::regex{"[^/]+(?=\\.cut)"} ) + ".root";
     std::cout << output_file << '\n';
 
-    auto waveform_input = waveform_repertory + get_part_l( cut_file, std::regex{"[^/]+(?=_c)"} ) + ".root";
+    auto waveform_input = waveform_repertory + get_part_l( cut_file, std::regex{"[^/]+(?=_ch)"} ) + ".root";
     std::cout << waveform_input << '\n';
 
     sf_g::data_input<TTree> source{ waveform_input };           
