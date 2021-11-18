@@ -40,6 +40,14 @@ struct amplitude_flag{
     static constexpr uint8_t shift = 0;
 };
 
+struct mean_flag{
+    static constexpr uint8_t shift = 5;
+};
+
+struct sigma_flag{
+    static constexpr uint8_t shift = 6;
+};
+
 template< class ... Ts >
 struct flag_set{
     
@@ -69,10 +77,25 @@ template<> struct specifier<0x02>{ using pack = details::pack< cfd_calculator> ;
 template<> struct specifier<0x04>{ using pack = details::pack< rise_time_calculator>; using data_t = rise_time; };
 template<> struct specifier<0x08>{ using pack = details::pack< charge_integrator >; using data_t = charge; };
 template<> struct specifier<0x10>{ using pack = details::pack< baseline_finder >; using data_t = baseline; };
+template<> struct specifier<0x20>{ using pack = details::pack< mean_finder >; using data_t = mean; };
+
+template<> struct specifier<0x03>{ using pack = details::pack< amplitude_finder, cfd_calculator>; using data_t = composite<amplitude, cfd_time> ; };
 template<> struct specifier<0x11>{ using pack = details::pack< amplitude_finder, baseline_finder >; using data_t = composite<amplitude, baseline>; };
 template<> struct specifier<0x09>{ using pack = details::pack< amplitude_finder, charge_integrator >; using data_t = composite<amplitude, charge>; };
+template<> struct specifier<0x18>{ using pack = details::pack< charge_integrator, baseline_finder >; using data_t = composite<charge, baseline>; };
+template<> struct specifier<0x12>{ using pack = details::pack< cfd_calculator, baseline_finder >; using data_t = composite< cfd_time, baseline>; };
+
 template<> struct specifier<0x19>{ using pack = details::pack< amplitude_finder, charge_integrator, baseline_finder >; using data_t = composite<amplitude, charge, baseline>; };
 template<> struct specifier<0x1C>{ using pack = details::pack< baseline_finder, charge_integrator, rise_time_calculator >; using data_t = composite< baseline, charge, rise_time >; };
+template<> struct specifier<0x1A>{ using pack = details::pack< charge_integrator, cfd_calculator, baseline_finder >; using data_t = composite< charge, cfd_time, baseline>; };
+template<> struct specifier<0x13>{ using pack = details::pack< amplitude_finder, cfd_calculator, baseline_finder >; using data_t = composite< amplitude, cfd_time, baseline>; };
+
+template<> struct specifier<0x1B>{ using pack = details::pack< amplitude_finder, charge_integrator, cfd_calculator, baseline_finder >; using data_t = composite< amplitude, charge, cfd_time, baseline>; };
+template<> struct specifier<0x2B>{ using pack = details::pack< amplitude_finder, charge_integrator, cfd_calculator, mean_finder >; using data_t = composite< amplitude, charge, cfd_time, mean>; };
+
+template<> struct specifier<0x3B>{ using pack = details::pack< amplitude_finder, charge_integrator, cfd_calculator, mean_finder, baseline_finder >; using data_t = composite< amplitude, charge, cfd_time, mean, baseline>; };
+
+template<> struct specifier<0x7B>{ using pack = details::pack< amplitude_finder, charge_integrator, cfd_calculator, mean_finder, sigma_finder, baseline_finder >; using data_t = composite< amplitude, charge, cfd_time, mean, sigma, baseline>; };
 
 struct waveform_specifier{ using data_t = waveform; };
 
@@ -90,6 +113,8 @@ specifier_pairing make_specifier_pairing( std::string& module_list_p ) {
         case 'b': { sp.opcode |= sf_g::flag_set< sf_g::baseline_flag >{} ; break ; }
         case 'c': { sp.opcode |= sf_g::flag_set< sf_g::charge_flag >{} ; break ; }
         case 'r': { sp.opcode |= sf_g::flag_set< sf_g::rise_flag >{} ; break ; }
+        case 'm': { sp.opcode |= sf_g::flag_set< sf_g::mean_flag >{} ; break ; }
+        case 's': { sp.opcode |= sf_g::flag_set< sf_g::sigma_flag >{} ; break ; }
         case ':': { break; }           
         case '{': { break; }           
         case '}': { break; }           

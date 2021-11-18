@@ -1,5 +1,7 @@
-#ifndef CALIBRATION_TOOLS_HPP
-#define CALIBRATION_TOOLS_HPP
+#ifndef TOOLS_HPP
+#define TOOLS_HPP
+
+#include "formulae.hpp"
 
 #include <regex>
 #include <string> 
@@ -10,23 +12,33 @@
 #include "TH1.h"
 #include "TCanvas.h"
 #include "TF1.h"
+#include "TFitResult.h"
+#include "TGraphErrors.h"
+#include "TRandom3.h"
+#include "TStyle.h"
+#include "TSlider.h"
+
 
 namespace sf_g {
 
-template<class F, class T> struct get_value_impl{};
-template<class F>
-struct get_value_impl<F, charge > {
-    constexpr double operator()( F* composite_ph ) const {return composite_ph->charge;}
+template<class Composite, class T> struct get_value_impl{};
+template<class Composite>
+struct get_value_impl<Composite, charge > {
+    constexpr double operator()( Composite* composite_ph ) const {return composite_ph->charge;}
 };
-template<class F>
-struct get_value_impl<F, amplitude > {
-    constexpr double operator()( F* composite_ph ) const {return composite_ph->amplitude;}
+template<class Composite>
+struct get_value_impl<Composite, amplitude > {
+    constexpr double operator()( Composite* composite_ph ) const {return composite_ph->amplitude;}
+};
+template<class Composite>
+struct get_value_impl<Composite, cfd_time > {
+    constexpr double operator()( Composite* composite_ph ) const {return composite_ph->time;}
 };
 
 
-template<class F, class T>
-constexpr double get_value( F* composite_ph){
-    return get_value_impl<F, T>{}( composite_ph );
+template<class Composite, class T>
+constexpr double get_value( Composite* composite_ph){
+    return get_value_impl<Composite, T>{}( composite_ph );
 };
 
 template<class T> struct new_histogram_impl{};
@@ -36,14 +48,16 @@ struct new_histogram_impl<charge>{
 };        
 template<>
 struct new_histogram_impl<amplitude>{
-    TH1D * operator()( double maximum_p ) const { return new TH1D{"histogram", ";amplitude (a.u.);count", static_cast<int>(maximum_p * 1.1e-5/5) , 0, maximum_p * 1.1};} 
+//    TH1D * operator()( double maximum_p ) const { return new TH1D{"histogram", ";amplitude (a.u.);count", static_cast<int>(maximum_p * 1.1/75) , 0, maximum_p * 1.1};} 
+    TH1D * operator()( double maximum_p ) const { return new TH1D{"histogram", ";amplitude (a.u.);count", static_cast<int>(maximum_p * 1.1/30) , 0, maximum_p * 1.1};} 
+//    TH1D * operator()( double maximum_p ) const { return new TH1D{"histogram", ";amplitude (a.u.);count", 2000 , 0, 10000};} 
 };        
 template<class T>
 TH1D* new_histogram( double maximum_p ){
     return new_histogram_impl<T>{}( maximum_p );
 }
 
-template<class F, class T>    
+template<class Composite, class T>    
 TH1D* extract( std::string filename_p ) {
     auto get_part_l = []( std::string const& input_p , std::regex regex_p ){
                             std::smatch result;
@@ -55,21 +69,22 @@ TH1D* extract( std::string filename_p ) {
 
     TFile file( get_part_l(filename_p, std::move(file_regex)).c_str()  );
     TTree* tree_h = static_cast<TTree*>( file.Get("data") );
-    auto *composite_h = new F{};
+    auto *composite_h = new Composite{};
     tree_h->SetBranchAddress( get_part_l( filename_p, std::move(branch_regex) ).c_str(), &composite_h);
     double maximum{0};
     for(auto i{0}; i < tree_h->GetEntries(); ++i){
         tree_h->GetEntry(i);
-        auto current_value = get_value<F, T>(composite_h);
+        auto current_value = get_value<Composite, T>(composite_h);
         if( current_value > maximum ){ maximum = current_value; } 
     }
 
     auto * h_h = new_histogram<T>( maximum ); 
+//    auto * h_h = new_histogram<T>( 50e6 ); 
     h_h->SetDirectory( gROOT );
 
     for(auto i{0}; i < tree_h->GetEntries(); ++i){
         tree_h->GetEntry(i);
-        h_h->Fill( get_value<F, T>(composite_h) );
+        h_h->Fill( get_value<Composite, T>(composite_h) );
     }
 
     delete composite_h;
@@ -78,10 +93,10 @@ TH1D* extract( std::string filename_p ) {
 
 }//namespace sf_g
 
-template<class F, class T>
+template<class Composite, class T>
 void fit(std::string filename_p) {
     TCanvas * c_h = new TCanvas{};
-    auto * h_h = sf_g::extract<F, T>(filename_p) ;
+    auto * h_h = sf_g::extract<Composite, T>(filename_p) ;
     h_h->Draw("same");
 
     double peak = h_h->GetBinCenter( h_h->GetMaximumBin() ); 
@@ -111,10 +126,10 @@ void store_fit( std::string output_p ) {
 }
 
 
-template<class F, class T>
+template<class Composite, class T>
 void extract_histogram(std::string filename_p) {
     TCanvas * c_h = new TCanvas{};
-    auto * h_h = sf_g::extract<F, T>(filename_p) ;
+    auto * h_h = sf_g::extract<Composite, T>(filename_p) ;
     h_h->Draw("same");
 }
 
@@ -200,6 +215,38 @@ void output_waveform() {
     hist_pad_h->cd();
     hist_h->Draw();
     delete w_h;
+}
+
+
+template< class Composite >
+void generate_time_distribution( std::string filename ) {
+    auto regex_split_l = []( std::string const & text_p, std::regex regex_p ) {
+        std::vector<std::string> result_c;
+        result_c.reserve(10);
+        
+        std::sregex_iterator match_i{ text_p.begin(), text_p.end(), regex_p };
+        auto end_i = std::sregex_iterator{};
+        for(auto iterator = match_i; iterator != end_i ; ++iterator){result_c.push_back( iterator->str() );}
+        return result_c;
+    };
+    auto name_c = regex_split_l( filename, std::regex{"[^:]+"}); 
+
+    auto* file_h = new TFile( name_c.front().c_str()  );
+    TTree* tree_h = static_cast<TTree*>( file_h->Get("data") );
+    auto *c1_h = new Composite{};
+    auto *c2_h = new Composite{};
+    tree_h->SetBranchAddress( name_c[1].c_str(), &c1_h);
+    tree_h->SetBranchAddress( name_c[2].c_str(), &c2_h);
+    
+    gROOT->cd();
+    auto * h_h =  new TH1D{"histogram", ";time difference (ps);count", 2000 , -2.5e6, 2.5e6};
+
+    for(auto i{0}; i < tree_h->GetEntries(); ++i){
+        tree_h->GetEntry(i);
+        h_h->Fill( c2_h->time - c1_h->time);
+    }
+
+    h_h->Draw();
 }
 
 

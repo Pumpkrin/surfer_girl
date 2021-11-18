@@ -44,6 +44,7 @@ int main( int argc, char* argv[] ) {
     }
 
     std::size_t const channel_count = module_list_c.size();
+    std::cout << "channel_count: " << channel_count << '\n';
     std::vector<sf_g::specifier_pairing> sp_c(channel_count);
     for( auto i{0}; i < channel_count ; ++i){ 
           sp_c[i] = sf_g::make_specifier_pairing( module_list_c[i] ); 
@@ -54,6 +55,7 @@ int main( int argc, char* argv[] ) {
     sf_g::tree_editor te;
     te.reserve(channel_count);
     for( auto& sp : sp_c ){
+//        std::cout << "channel: " << sp.channel_number <<  '\n';
         switch( sp.opcode ) {
         using namespace sf_g;
         case flag_set<amplitude_flag>{} : {
@@ -76,8 +78,16 @@ int main( int argc, char* argv[] ) {
             te.add( sf_g::branch_editor< specifier<flag_set<baseline_flag>{}> >{ sp.channel_number, sink } ); 
             break;
                                          }
+        case flag_set<mean_flag>{} : {
+            te.add( sf_g::branch_editor< specifier<flag_set<mean_flag>{}> >{ sp.channel_number, sink } ); 
+            break;
+                                         }
         case flag_set<amplitude_flag, baseline_flag>{} : {
             te.add( sf_g::branch_editor< specifier<flag_set<amplitude_flag, baseline_flag>{}> >{ sp.channel_number, sink } ); 
+            break;
+                                         }
+        case flag_set<charge_flag, baseline_flag>{} : {
+            te.add( sf_g::branch_editor< specifier<flag_set<charge_flag, baseline_flag>{}> >{ sp.channel_number, sink } ); 
             break;
                                          }
         case flag_set<amplitude_flag, charge_flag>{} : {
@@ -90,6 +100,38 @@ int main( int argc, char* argv[] ) {
                                          }
         case flag_set< baseline_flag, charge_flag, rise_flag >{} : {
             te.add( sf_g::branch_editor< specifier<flag_set<baseline_flag, charge_flag, rise_flag >{}> >{ sp.channel_number, sink } ); 
+            break;
+                                         }
+        case flag_set<cfd_flag, baseline_flag>{} : {
+            te.add( sf_g::branch_editor< specifier<flag_set<cfd_flag, baseline_flag>{}> >{ sp.channel_number, sink } ); 
+            break;
+                                         }
+        case flag_set<amplitude_flag, cfd_flag>{} : {
+            te.add( sf_g::branch_editor< specifier<flag_set<amplitude_flag, cfd_flag>{}> >{ sp.channel_number, sink } ); 
+            break;
+                                         }
+        case flag_set<charge_flag, cfd_flag, baseline_flag>{} : {
+            te.add( sf_g::branch_editor< specifier<flag_set<charge_flag, cfd_flag, baseline_flag>{}> >{ sp.channel_number, sink } ); 
+            break;
+                                         }
+        case flag_set<amplitude_flag, cfd_flag, baseline_flag>{} : {
+            te.add( sf_g::branch_editor< specifier<flag_set<amplitude_flag, cfd_flag, baseline_flag>{}> >{ sp.channel_number, sink } ); 
+            break;
+                                         }
+        case flag_set<amplitude_flag, charge_flag, baseline_flag, cfd_flag>{} : {
+            te.add( sf_g::branch_editor< specifier<flag_set<amplitude_flag, charge_flag, baseline_flag, cfd_flag>{}> >{ sp.channel_number, sink } ); 
+            break;
+                                         }
+        case flag_set<amplitude_flag, charge_flag, mean_flag, cfd_flag>{} : {
+            te.add( sf_g::branch_editor< specifier<flag_set<amplitude_flag, charge_flag, mean_flag, cfd_flag>{}> >{ sp.channel_number, sink } ); 
+            break;
+                                         }
+        case flag_set<amplitude_flag, charge_flag, baseline_flag, mean_flag, cfd_flag>{} : {
+            te.add( sf_g::branch_editor< specifier<flag_set<amplitude_flag, charge_flag, baseline_flag, mean_flag, cfd_flag>{}> >{ sp.channel_number, sink } ); 
+            break;
+                                         }
+        case flag_set<amplitude_flag, charge_flag, baseline_flag, mean_flag, cfd_flag, sigma_flag>{} : {
+            te.add( sf_g::branch_editor< specifier<flag_set<amplitude_flag, charge_flag, baseline_flag, mean_flag, cfd_flag, sigma_flag>{}> >{ sp.channel_number, sink } ); 
             break;
                                          }
         default: {

@@ -21,6 +21,7 @@ struct raw_modifier {
             for( auto i{0}; i < 1024 ; ++i ){
                 result_c[k].data.SetBinContent( i+1, data_pc[k].sample_c[i] );
             }
+//            std::cout << "channel" << data_pc[k].channel_id << ": " << result_c[k].data.GetMinimum() << '\n';
         }
         return result_c;
     }
@@ -36,14 +37,9 @@ struct cut_modifier{
     {}
 
     std::vector<linked_waveform> operator()( std::vector< linked_waveform >&& input_pc ) {
-        std::vector< linked_waveform > result_c;
-        result_c.reserve( input_pc.size() );
-        if( counter_m++ != event_mc.front() ){ return result_c; }  
-        for( auto && input : input_pc ){ //customize behaviour using pointer to member function trick ?
-            if( input.channel_number == channel_number_m ){ result_c.emplace_back( std::move(input) ); }
-        }
+        if( counter_m++ != event_mc.front() ){ return {}; }  
         event_mc.erase( event_mc.begin() );
-        return result_c;            
+        return std::move( input_pc );            
     }
 
 private:
@@ -73,7 +69,7 @@ private:
 
     std::size_t retrieve_channel_number( std::string const& input_file_p) const {
         std::smatch result;
-        std::regex_search( input_file_p, result, std::regex{"[0-9](?=_!?[abcrt])"});
+        std::regex_search( input_file_p, result, std::regex{"[0-9](?=_!?[abcrtms])"});
         return static_cast<std::size_t>( std::stoi(result[0].str()) );
     }
 
@@ -132,8 +128,9 @@ struct amplitude_finder {
     using output_t = amplitude;
     output_t operator()( linked_waveform const& input_p ) const {
         double baseline{0}; 
-        for( auto i{0}; i < 16 ; ++i ) { baseline += input_p.data.GetBinContent( i +1 ); }
-        baseline /= 16;
+        for( auto i{0}; i < 64 ; ++i ) { baseline += input_p.data.GetBinContent( i +1 ); }
+        baseline /= 64;
+//        std::cout << "modifer::amplitude: " << baseline - input_p.data.GetMinimum() << '\n';
         return {baseline - input_p.data.GetMinimum()}; 
     };
 }; 
@@ -142,8 +139,8 @@ struct baseline_finder {
     using output_t = baseline;
     output_t operator()( linked_waveform const& input_p ) const {
         double baseline{0};
-        for( auto i{0}; i < 16 ; ++i ) { baseline += input_p.data.GetBinContent( i +1 ); }
-        baseline /= 16;
+        for( auto i{0}; i < 64 ; ++i ) { baseline += input_p.data.GetBinContent( i +1 ); }
+        baseline /= 64;
         return {baseline};
     }
 };
@@ -156,12 +153,14 @@ struct cfd_calculator {
         std::size_t delay = 15;
 
         double baseline{0};
-        for( auto i{0}; i < 16 ; ++i ) { baseline += input_p.data.GetBinContent( i +1 ); }
-        baseline /= 16;
+        for( auto i{0}; i < 64 ; ++i ) { baseline += input_p.data.GetBinContent( i +1 ); }
+        baseline /= 64;
+//        std::cout << "baseline: " << baseline << '\n'; 
 
         double current{0}, last{0};
 //        std::cout << "cfd:\n";
-        for(auto i{1}; i < input_p.data.GetNbinsX()+1 - delay; ++i) {
+        auto limit = input_p.data.GetMinimumBin();
+        for(auto i{ limit }; i > 0 ; --i) {
             double value = input_p.data.GetBinContent(i) - baseline; 
             double df_value = fraction * ( input_p.data.GetBinContent(i + delay) - baseline );
 //            std::cout << "value: " << value << " - df_value: " << df_value << '\n';
@@ -185,15 +184,16 @@ struct charge_integrator {
     output_t operator()(linked_waveform const& input_p) const {
 
         double baseline{0};
-        for( auto i{0}; i < 16 ; ++i ) { baseline += input_p.data.GetBinContent( i +1 ); }
-        baseline /= 16;
+        for( auto i{0}; i < 64 ; ++i ) { baseline += input_p.data.GetBinContent( i +1 ); }
+        baseline /= 64;
 
         double waveform_length = input_p.data.GetBinCenter(input_p.data.GetXaxis()->GetLast());
 //        std::cout << "rectangle_integral: " << baseline*waveform_length << '\n';
 //        std::cout << "signal_integral: " << input_p.data.Integral("width") << '\n';
 //        std::cout << "waveform_length: " << waveform_length << '\n';
         charge result{baseline*waveform_length - input_p.data.Integral("width")};  
-        return result.charge > 0 ? result : charge{0};
+//        return result.charge > 0 ? result : charge{0};
+        return result;
     }
 };
 
@@ -201,8 +201,8 @@ struct rise_time_calculator {
     using output_t = rise_time;
     output_t operator()( linked_waveform const& input_p ) const {
         double baseline{0}; 
-        for( auto i{0}; i < 16 ; ++i ) { baseline += input_p.data.GetBinContent( i +1 ); }
-        baseline /= 16;
+        for( auto i{0}; i < 64 ; ++i ) { baseline += input_p.data.GetBinContent( i +1 ); }
+        baseline /= 64;
 
         double amplitude = input_p.data.GetMinimum() - baseline;
         double low_cutoff = baseline + amplitude * 0.1 ;
@@ -217,6 +217,30 @@ struct rise_time_calculator {
         return { high_time - low_time }; 
     };
 }; 
+
+struct mean_finder {
+    using output_t = mean;
+    output_t operator()( linked_waveform const& input_p ) const {
+        double result{0};
+        for( auto i{1}; i < input_p.data.GetNbinsX()+1; ++i ){ result += input_p.data.GetBinContent( i ); }
+        result /= input_p.data.GetNbinsX();
+        return {result};
+    }
+};
+
+struct sigma_finder {
+    using output_t = sigma;
+    output_t operator()( linked_waveform const& input_p ) const {
+        double mean{0};
+        double result{0};
+        for( auto i{1}; i < input_p.data.GetNbinsX()+1; ++i ){ mean += input_p.data.GetBinContent( i ); }
+        mean /= input_p.data.GetNbinsX();
+        for( auto i{1}; i < input_p.data.GetNbinsX()+1; ++i ){ result += pow( input_p.data.GetBinContent( i ) - mean, 2); }
+        result = sqrt( result/input_p.data.GetNbinsX() );
+        return {result};
+    }
+};
+
 
 } //namespace sf_g
 #endif

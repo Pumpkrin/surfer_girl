@@ -4,6 +4,7 @@
 #include <string>
 #include <fstream>
 #include <array>
+#include <memory>
 
 #include "TFile.h"
 #include "TTree.h"
@@ -60,6 +61,7 @@ private:
 #endif
         auto& key_c = *current_directory_h->GetListOfKeys();
         for( auto * key_h : key_c ){
+            std::cout << "key: " << key_h->GetName() << '\n';
             auto * tree_h = dynamic_cast<TTree*>( file_m.Get( key_h->GetName() ));
             if(tree_h){ return tree_h; }
         }
@@ -80,22 +82,34 @@ template<class T> struct data_output{};
 template<>
 struct data_output<TTree> {
     data_output(std::string filename_p):
-        file_m{ filename_p.c_str(), "RECREATE" },
-        tree_m{ "data", "data from wavecatcher"} {}
-    ~data_output() { file_m.cd(); tree_m.Write(); }
+        file_m{ filename_p.c_str(), "UPDATE" }
+    {
+        file_m.cd();
+        auto * temp_tree_h = static_cast<TTree*>( file_m.Get( "data" ) );
+        if( temp_tree_h ){ tree_mh.reset( temp_tree_h ); }
+        else{ tree_mh.reset( new TTree{ "data", "data from wavecatcher"} ); }
+    }
+    ~data_output() { file_m.cd(); tree_mh->Write(); }
     
     void register_writer() { ++writer_count; }
     template<class T>
-    TBranch* register_branch_writer( std::string const& name_p, T* object_ph ) { ++writer_count; return tree_m.Branch( name_p.c_str(), object_ph); }
+    TBranch* register_branch_writer( std::string const& name_p, T* object_ph ) { 
+        ++writer_count; 
+        if( tree_mh->GetBranch(name_p.c_str()) ){ tree_mh->SetBranchAddress( name_p.c_str(), object_ph ); return tree_mh->GetBranch(name_p.c_str()); }
+        return tree_mh->Branch( name_p.c_str(), object_ph); 
+    }
     template<class T>
-    TBranch* branch( std::string const& name_p, T* object_ph ) { return tree_m.Branch( name_p.c_str(), object_ph); }
-    void fill() {if( ++current_fill_request == writer_count){ tree_m.Fill(); current_fill_request = 0 ;}} 
+    TBranch* branch( std::string const& name_p, T** object_phh ) { 
+        if( tree_mh->GetBranch(name_p.c_str()) ){ tree_mh->SetBranchAddress( name_p.c_str(), object_phh); return tree_mh->GetBranch(name_p.c_str()); } 
+        return tree_mh->Branch( name_p.c_str(), object_phh); 
+    }
+    void fill() {if( ++current_fill_request == writer_count){ tree_mh->Fill(); current_fill_request = 0 ;}} 
        
 private:
     TFile file_m;
     std::size_t writer_count{0};
     std::size_t current_fill_request{0};
-    TTree tree_m;
+    std::unique_ptr<TTree> tree_mh;
 };
 
 

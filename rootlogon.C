@@ -1,5 +1,8 @@
 {
    gSystem->Load("@path_to_lib@libdata_structure.so");
    gROOT->LoadMacro("@path_to_macro@reprocess_waveform.hpp");
-   gROOT->LoadMacro("@path_to_macro@calibration_tools.hpp");
+   gROOT->LoadMacro("@path_to_macro@fit_tools.hpp");
+   gROOT->LoadMacro("@path_to_macro@formulae.hpp");
+   gROOT->LoadMacro("@path_to_macro@tools.hpp");
+   gROOT->LoadMacro("@path_to_macro@process_spectra.hpp");
 }

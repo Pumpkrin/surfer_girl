@@ -12,21 +12,32 @@ namespace sf_g{
 struct raw_writer{
 private:
     struct linker{
-        linker( int channel_count_p ) : data_mc( channel_count_p ) { channel_number_mc.reserve( channel_count_p ); }
-        waveform* add( std::size_t channel_number_p ){ 
+        linker( int channel_count_p ) : 
+            data_mc( channel_count_p ),
+            data_mch( channel_count_p)
+        { channel_number_mc.reserve( channel_count_p ); }
+        waveform** add( std::size_t channel_number_p ){ 
             channel_number_mc.push_back( channel_number_p ); 
-            return (*this)( channel_number_p ); 
+            auto index = find_channel_index( channel_number_p );
+            data_mch[index] = &data_mc[index];
+            return &data_mch[index] ; 
         }
-        waveform* operator()( std::size_t channel_number_p ){ 
-            auto index = std::distance( 
+        waveform& operator()( std::size_t channel_number_p ){ 
+            auto index = find_channel_index( channel_number_p );
+            return data_mc[index];
+        }
+    private:
+        std::size_t find_channel_index( std::size_t channel_number_p ){
+            return std::distance( 
                         channel_number_mc.begin(),
                         std::find( channel_number_mc.begin(), channel_number_mc.end(), channel_number_p )
                                        );
-            return &data_mc[index];
         }
+
     private:
         std::vector<std::size_t> channel_number_mc;
         std::vector< waveform > data_mc;
+        std::vector< waveform* > data_mch;
     };
 
     void link_branches( std::vector<linked_waveform> && input_pc ){
@@ -38,11 +49,11 @@ private:
 //            linker_m( input.channel_number )->data = std::move(input.data);
 //        } 
         for( auto i{0}; i < input_pc.size() ; ++i) {
-            auto * data_h = linker_m.add( i );
+            auto ** data_hh = linker_m.add( i );
             std::string name = "channel_" + std::to_string(i) + ".";
-            std::cout << name << '\n';
-            tree_m.branch( name.c_str(), data_h ); 
-            linker_m( i )->data = std::move(input_pc[i].data);
+//            std::cout << name << '\n';
+            tree_m.branch( name.c_str(), data_hh ); 
+            linker_m( i ).data = std::move(input_pc[i].data);
         } 
         current_function_h = &raw_writer::fill;
     };
@@ -51,7 +62,7 @@ private:
 //           linker_m( input.channel_number )->data = std::move( input.data ) ;
 //        }
         for( auto i{0}; i < input_pc.size() ; ++i ) {
-           linker_m( i )->data = std::move( input_pc[i].data ) ;
+           linker_m( i ).data = std::move( input_pc[i].data ) ;
         }
     };
 
@@ -106,6 +117,7 @@ private:
 
 
 // ------------------------------------branch_editor-------------------------------------------
+template<class>class TD;
 
 template<class Specifier>
 struct branch_editor {
@@ -114,6 +126,9 @@ struct branch_editor {
         w_m{ associated_channel_m, sink_p } {} 
     void operator()( std::vector<linked_waveform> const& input_pc ) {
         m_m( input_pc[associated_channel_m] ) | w_m;
+//        auto temp = m_m( input_pc[associated_channel_m] );
+//        temp.value();
+//        w_m( std::move(temp) );
     }
     std::size_t associated_channel() const { return associated_channel_m; }
 

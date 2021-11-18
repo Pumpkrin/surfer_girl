@@ -167,14 +167,19 @@ struct reader< TTree, linked_waveform> {
     std::vector< output_t > operator()( data_input<input_t>& input_p ) {
         std::vector< output_t > output_c{channel_count_m}; 
         input_p.load_entry();
+//        std::cout << "reader::channel_number: " << waveform_mc.size() << " / " << channel_count_m << '\n';
         for( auto i{0} ; i < channel_count_m ; ++i ) { 
             output_c[i].data = waveform_mc[i]->data; 
+//            std::cout << "reader::amplitude: " << waveform_mc[i]->data.GetMinimum() << " / " <<  output_c[i].data.GetMinimum() << '\n';
             output_c[i].channel_number =  channel_pairing_mc[i];
         }
         return output_c;
     }
+
+    constexpr std::size_t channel_count() const { return channel_count_m; }
 private:
     std::size_t retrieve_channel_count(data_input<input_t>& input_p) const {
+        std::cout << "branches: " << input_p.input_h->GetListOfBranches()->GetEntries() << '\n';
         return input_p.input_h->GetListOfBranches()->GetEntries();
     }
     std::vector<std::size_t> retrieve_channel_pairing(data_input<input_t>& input_p) const {

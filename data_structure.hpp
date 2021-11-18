@@ -67,6 +67,14 @@ struct cfd_time { double time; void value() const { std::cout << time << '\n';} 
 struct charge { double charge; void value() const { std::cout << charge << '\n';} };    
 struct rise_time { double rise_time; void value() const { std::cout << rise_time << '\n';} };    
 struct fall_time { double fall_time; void value() const { std::cout << fall_time << '\n';} };    
+struct mean { double mean; void value() const { std::cout << mean << '\n';} };    
+struct sigma { double sigma; void value() const { std::cout << sigma << '\n';} };    
+
+
+struct gamma_response{
+    double gamma_energy;
+    double deposited_energy;
+};
 
 }
 #endif
