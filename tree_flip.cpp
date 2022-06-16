@@ -102,6 +102,10 @@ int main( int argc, char* argv[] ) {
             te.add( sf_g::branch_editor< specifier<flag_set<baseline_flag, charge_flag, rise_flag >{}> >{ sp.channel_number, sink } ); 
             break;
                                          }
+        case flag_set<amplitude_flag, pile_up_flag, baseline_flag>{} : {
+            te.add( sf_g::branch_editor< specifier<flag_set<amplitude_flag, pile_up_flag, baseline_flag>{}> >{ sp.channel_number, sink } ); 
+            break;
+                                         }
         case flag_set<cfd_flag, baseline_flag>{} : {
             te.add( sf_g::branch_editor< specifier<flag_set<cfd_flag, baseline_flag>{}> >{ sp.channel_number, sink } ); 
             break;

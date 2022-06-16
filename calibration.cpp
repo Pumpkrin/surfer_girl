@@ -83,7 +83,7 @@ int main( int argc, char* argv[]) {
 //        g_h->SetPoint( counter , energy.value, mean.value );
         g_h->SetPoint( counter , mean.value, energy.value );
 //        g_h->SetPointError( counter++ , energy.error, result.sigma.value );
-//        g_h->SetPointError( counter++ , energy.error, mean.error );
+ //       g_h->SetPointError( counter++ , energy.error, mean.error );
         g_h->SetPointError( counter++ , mean.error, energy.error );
     }
        

@@ -36,7 +36,7 @@ int main( int argc, char* argv[]) {
         if( argument == std::string{"-beam"} ){ is_from_sources = false; } 
         if( argument == std::string{"-folder"} ){
             result_path = get_result_path_l( argv[++i] );
-            curve_name = "energy_resolution_" + get_part_l( argv[i], std::regex{"[0-9]+HT/\\w+"});
+            curve_name = "energy_resolution_" + get_part_l( argv[i], std::regex{"[0-9]+HV/\\w+"});
             curve_name.replace( curve_name.find( "/" ), 1, "_");
 //            curve_name += "_" + formulae;
             std::string file_path = argv[i];
@@ -135,6 +135,7 @@ int main( int argc, char* argv[]) {
     }
 
     std::string output = result_path + "results.root";
+    std::cout << "storing curve in: " << output << '\n';
     TFile file( output.c_str() , "UPDATE" );
     g_h->Write();
 }

@@ -35,17 +35,15 @@ int main(int argc, char* argv[]){
     tree_h->SetBranchAddress("gamma_response", &response_h); 
 
     gROOT->cd();
-    TH2D response_matrix{"response_matrix",";deposited_energy (MeV);gamma_energy (MeV)", static_cast<int>(bin_count), lower_range, upper_range, static_cast<int>(bin_count), lower_range, upper_range };
-    TH1D spectrum{"spectrum",";deposited_energy (MeV);count", static_cast<int>(bin_count), lower_range, upper_range };
-
+    TH2D response_matrix{"response_matrix",";initial_energy (MeV);deposited_energy (MeV)", static_cast<int>(bin_count), lower_range, upper_range, static_cast<int>(bin_count), lower_range, upper_range };
+    TH1D initial_spectrum{"initial_spectrum",";deposited_energy (MeV);count", static_cast<int>(bin_count), lower_range, upper_range };
+    TH1D spectrum_direct{"spectrum_direct",";deposited_energy (MeV);count", static_cast<int>(bin_count), lower_range, upper_range };
     for( std::size_t i{0}; i < tree_h->GetEntries() ; ++i ){
         tree_h->GetEntry(i);
-//        if(response.deposited_energy > 0.7 && response.deposited_energy< 15){
-            response_h->deposited_energy = s( response_h->deposited_energy );
-            response_matrix.Fill( response_h->deposited_energy, response_h->gamma_energy );
-            spectrum.Fill(response_h->deposited_energy);
-            //fill result
-//        }
+        response_h->deposited_energy = s( response_h->deposited_energy );
+        response_matrix.Fill( response_h->gamma_energy, response_h->deposited_energy );
+        initial_spectrum.Fill( response_h->gamma_energy );
+        spectrum_direct.Fill( response_h->deposited_energy );
     }
     input.Close();
 
@@ -58,10 +56,33 @@ int main(int argc, char* argv[]){
         if(content_c[i%bin_count] > 0){ response_matrix.SetBinContent( i%bin_count+1, i/bin_count+1, response_matrix.GetBinContent( i%bin_count + 1, i/bin_count +1 )/content_c[i%bin_count] );      }
     }
     
+    TH2D response_matrix_transpose{"response_matrix_transpose",";deposited_energy (MeV);gamma_energy (MeV)", static_cast<int>(bin_count), lower_range, upper_range, static_cast<int>(bin_count), lower_range, upper_range };
+    TH2D toeplitz_matrix{"toeplitz_matrix","", static_cast<int>(bin_count), lower_range, upper_range, static_cast<int>(bin_count), lower_range, upper_range };
+    TH1D spectrum{"spectrum_withresponse",";deposited_energy (MeV);count", static_cast<int>(bin_count), lower_range, upper_range };
+    for( auto i{1} ; i < response_matrix.GetNbinsY()+1 ; ++i ){
+        auto deposited_energy{0.};
+        for( auto j{1}; j < response_matrix.GetNbinsX()+1 ; ++ j) {
+            response_matrix_transpose.SetBinContent(i, j, response_matrix.GetBinContent(j, i));
+            deposited_energy += response_matrix.GetBinContent( j, i) * initial_spectrum.GetBinContent(j);
+        }
+        spectrum.SetBinContent(i, deposited_energy);
+    } 
+    for( auto l{1} ; l < (toeplitz_matrix.GetNbinsY()+1) ; ++l ){
+        for( auto m{1}; m < toeplitz_matrix.GetNbinsX()+1 ; ++m) {
+            auto value{0.};
+            for( auto i{1}; i < response_matrix.GetNbinsX()+1 ; ++i) {
+                value += response_matrix.GetBinContent(l, i) * response_matrix.GetBinContent(m, i);
+            }
+            toeplitz_matrix.SetBinContent(m, l, value);
+        }
+    } 
 
-    //fill output
     TFile output{ output_file.c_str(), "UPDATE" };
+    initial_spectrum.Write();
     spectrum.Write();
+    spectrum_direct.Write();
     response_matrix.Write();
+    response_matrix_transpose.Write();
+    toeplitz_matrix.Write();
     output.Close();
 }

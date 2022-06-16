@@ -34,6 +34,10 @@ template<class Composite>
 struct get_value_impl<Composite, cfd_time > {
     constexpr double operator()( Composite* composite_ph ) const {return composite_ph->time;}
 };
+template<class Composite>
+struct get_value_impl<Composite, pile_up > {
+    constexpr double operator()( Composite* composite_ph ) const {return composite_ph->pile_up;}
+};
 
 
 template<class Composite, class T>
@@ -49,8 +53,12 @@ struct new_histogram_impl<charge>{
 template<>
 struct new_histogram_impl<amplitude>{
 //    TH1D * operator()( double maximum_p ) const { return new TH1D{"histogram", ";amplitude (a.u.);count", static_cast<int>(maximum_p * 1.1/75) , 0, maximum_p * 1.1};} 
-    TH1D * operator()( double maximum_p ) const { return new TH1D{"histogram", ";amplitude (a.u.);count", static_cast<int>(maximum_p * 1.1/30) , 0, maximum_p * 1.1};} 
-//    TH1D * operator()( double maximum_p ) const { return new TH1D{"histogram", ";amplitude (a.u.);count", 2000 , 0, 10000};} 
+//    TH1D * operator()( double maximum_p ) const { return new TH1D{"histogram", ";amplitude (a.u.);count", maximum_p * 1.1/30 > 100 ? static_cast<int>(maximum_p * 1.1/30) : 100  , 0, maximum_p * 1.1};} 
+    TH1D * operator()( double maximum_p ) const { return new TH1D{"histogram", ";amplitude (a.u.);count", 1000 ,100 , 7000};} 
+};        
+template<>
+struct new_histogram_impl<pile_up>{
+    TH1D * operator()( double maximum_p ) const { return new TH1D{"histogram", ";pile_up (a.u.);count", static_cast<int>(maximum_p * 1.1/30) , 0, maximum_p * 1.1};} 
 };        
 template<class T>
 TH1D* new_histogram( double maximum_p ){
@@ -102,6 +110,31 @@ void fit(std::string filename_p) {
     double peak = h_h->GetBinCenter( h_h->GetMaximumBin() ); 
     TF1 f{ "f", "gaus", 0.9 * peak, 1.1 * peak};
     auto fit = h_h->Fit(&f, "RS");
+}
+
+void compute_integral_from_last_fit(std::string name_p) {
+#if ROOT_VERSION_CODE >= ROOT_VERSION(6,24,0)
+    auto * current_directory_h = TDirectory::CurrentDirectory().load();
+#else
+    auto * current_directory_h = TDirectory::CurrentDirectory();
+#endif
+    auto& object_c = *current_directory_h->GetList();
+    TH1D* h_h;
+    for( auto * object_h : object_c ){
+         if(std::string{ object_h->GetName() }==name_p  ) { h_h = dynamic_cast<TH1D*>( object_h ); }
+    }
+    if(!h_h){ std::cerr << "No histogram found\n"; return;}
+
+    auto *list_h = h_h->GetListOfFunctions();
+    auto * f_h = static_cast<TF1*>(list_h->Last());
+//    auto * f_h = h_h->GetFunction("PrevFitTMP");
+    if(!f_h){ std::cerr << "no function found\n";}
+    auto fit_h = h_h->Fit(f_h, "S");
+    auto lower_limit = fit_h->Parameter(1) - 3*fit_h->Parameter(2);
+    auto upper_limit = fit_h->Parameter(1) + 3*fit_h->Parameter(2);
+    auto width = h_h->GetBinWidth( h_h->FindBin( lower_limit ) );
+    std::cout << "Mean: " << fit_h->Parameter(1) << " +/- " << fit_h->Error(1) << '\n';
+    std::cout << "Integral: " << f_h->Integral(lower_limit, upper_limit)/width << " +/- " << f_h->IntegralError(lower_limit, upper_limit, fit_h->GetParams(), fit_h->GetCovarianceMatrix().GetMatrixArray())/width << "\n";
 }
 
 void store_fit( std::string output_p ) {
@@ -249,6 +282,140 @@ void generate_time_distribution( std::string filename ) {
     h_h->Draw();
 }
 
+void draw_qqplot( TH1D* distribution1_p, TH1D* distribution2_p, double step_p ) {
+    distribution1_p->Scale(1./distribution1_p->Integral());
+    distribution2_p->Scale(1./distribution2_p->Integral());
+    
+    std::vector<double> abscissa_c;
+    std::vector<double> ordinate_c;
+
+    struct qq_data{
+        double abscissa;
+        double ordinate;
+        double quantile;
+        double quantile_abscissa;
+        double quantile_ordinate;
+    };
+
+    std::vector<qq_data> qq_data_c;
+    qq_data_c.reserve( 1./step_p);
+    for(double quantile{step_p}; quantile < 1 ; quantile += step_p ){
+        std::cout << "aiming for: " << quantile << '\n';
+
+        int index1{1}, index2{1};
+        if(qq_data_c.empty()){qq_data_c.push_back( qq_data{} );}
+        else{ 
+            qq_data_c.push_back( qq_data_c.back() ) ; 
+            qq_data_c.back().quantile = 0;
+            index1 = distribution1_p->FindBin( qq_data_c.back().abscissa) + 1; 
+            index2 = distribution2_p->FindBin( qq_data_c.back().ordinate) + 1;
+        }
+        auto & qq_data = qq_data_c.back();
+
+        while( qq_data.quantile_abscissa < quantile && index1 < distribution1_p->GetNbinsX() +1 ){qq_data.quantile_abscissa += distribution1_p->GetBinContent(index1++);} 
+        while( qq_data.quantile_ordinate < quantile && index2 < distribution2_p->GetNbinsX() +1 ){qq_data.quantile_ordinate += distribution2_p->GetBinContent(index2++);} 
+        std::cout << qq_data.quantile_abscissa << " -> " << qq_data.quantile_ordinate << '\n';
+
+        if( qq_data.quantile_abscissa > quantile + step_p || qq_data.quantile_ordinate > quantile + step_p ){ std::cout << qq_data_c.size() << "erasing\n"; qq_data_c.erase( qq_data_c.end() -1) ;  continue; }
+
+        qq_data.abscissa = distribution1_p->GetBinCenter(index1);
+        qq_data.ordinate = distribution2_p->GetBinCenter(index2);
+        qq_data.quantile = quantile;
+        std::cout << quantile << ": " << qq_data.abscissa << " -> " << qq_data.ordinate <<  '\n';
+    }
+
+    qq_data_c.erase( std::remove_if( qq_data_c.begin(), qq_data_c.end(), [](auto const& qq_data_p){ return qq_data_p.quantile == 0; } ),
+                     qq_data_c.end() );  
+    std::for_each(qq_data_c.begin(), qq_data_c.end(), [&abscissa_c, &ordinate_c](auto const& v_p){ abscissa_c.push_back( v_p.abscissa ); ordinate_c.push_back( v_p.ordinate );  });
+
+    for(auto i{0}; i < abscissa_c.size() ; ++i){
+        std::cout << abscissa_c[i] << " -> " << ordinate_c[i] << '\n';
+    }
+    TGraph * g_h = new TGraph{ static_cast<int>(abscissa_c.size()), abscissa_c.data(), ordinate_c.data()};
+    TCanvas * c_h = new TCanvas{};
+    g_h->Draw("a*");
+    TF1 * f_h = new TF1{ "f", "x",distribution1_p->GetBinCenter(1), distribution1_p->GetBinCenter( distribution1_p->GetNbinsX() ) };
+    f_h->Draw("same");
+
+
+}
+void draw_reverse_qqplot( TH1D* distribution1_p, TH1D* distribution2_p, double step_p ) {
+    distribution1_p->Scale(1./distribution1_p->Integral());
+    distribution2_p->Scale(1./distribution2_p->Integral());
+    
+    std::vector<double> abscissa_c;
+    std::vector<double> ordinate_c;
+
+    struct qq_data{
+        double abscissa;
+        double ordinate;
+        double quantile;
+    };
+
+//    std::vector<double> quantile_c{0.91, 1.22, 1.5, 1.6, 1.84, 2, 2.33, 2.6, 2.8, 3.1, 4.25, 4.65, 5.35, 5.9, 6.3, 6.8, 7.3};
+    std::vector<double> quantile_c;
+    int const size = distribution1_p->GetNbinsX();
+    double range = distribution1_p->GetBinLowEdge( size ) + distribution1_p->GetBinWidth(size) - distribution1_p->GetBinLowEdge(1); 
+    for(auto i{1}; i< range/step_p; ++i){ quantile_c.push_back( i * step_p); } 
+    
+    std::vector<qq_data> qq_data_c;
+    qq_data_c.reserve(quantile_c.size());
+    for(auto const& quantile : quantile_c){
+        qq_data_c.push_back( qq_data{} );
+        auto & qq_data = qq_data_c.back();
+
+        auto index{0};
+        while( distribution1_p->GetBinCenter(index) < quantile && index < distribution1_p->GetNbinsX() +1 ){
+            qq_data.abscissa += distribution1_p->GetBinContent(index++);
+        } 
+        index = 0;
+        while( distribution2_p->GetBinCenter(index) < quantile && index < distribution2_p->GetNbinsX() +1 ){
+            qq_data.ordinate += distribution2_p->GetBinContent(index++);
+        } 
+        qq_data.quantile = quantile;
+        std::cout << quantile << ": " << qq_data.abscissa << " -> " << qq_data.ordinate <<  '\n';
+    }
+
+    std::for_each(qq_data_c.begin(), qq_data_c.end(), [&abscissa_c, &ordinate_c](auto const& v_p){ abscissa_c.push_back( v_p.abscissa ); ordinate_c.push_back( v_p.ordinate );  });
+
+    for(auto i{0}; i < abscissa_c.size() ; ++i){
+        std::cout << abscissa_c[i] << " -> " << ordinate_c[i] << '\n';
+    }
+    TGraph * g_h = new TGraph{ static_cast<int>(abscissa_c.size()), abscissa_c.data(), ordinate_c.data()};
+    TCanvas * c_h = new TCanvas{};
+    g_h->Draw("a*");
+    TF1 * f_h = new TF1{ "f", "x",distribution1_p->GetBinCenter(1), distribution1_p->GetBinCenter( distribution1_p->GetNbinsX() ) };
+    f_h->Draw("same");
+
+    TH1D * h_h = new TH1D{"h", "E (MeV)", static_cast<int>(abscissa_c.size()), 0, 10};
+    for(auto i{0}; i < abscissa_c.size(); ++ i){
+        h_h->Fill( quantile_c[i], sqrt(2*( pow(abscissa_c[i],2) + pow(ordinate_c[i],2))/2));
+    }
+    TCanvas * c2_h= new TCanvas{};
+    h_h->Draw();
+}
+
+TH1D* compute_cumulative_distribution(TH1D * distribution_ph){
+    int const size = distribution_ph->GetNbinsX();
+    TH1D * value_h = new TH1D{ "h", "; E(MeV);", size, 0, 10};
+    auto value{0.};
+    for(auto i{1}; i < size +1 ; ++i){
+        value += distribution_ph->GetBinContent(i);
+        value_h->SetBinContent(i, value);
+    }
+    return value_h;
+}
+
+void draw_difference(TH1D * distribution1_ph,TH1D * distribution2_ph){
+    int const size = distribution1_ph->GetNbinsX();
+    TH1D * value_h = new TH1D{ "h", "; E(MeV);", size, 0, 10};
+    for(auto i{1}; i < size +1 ; ++i){
+        value_h->SetBinContent(i, distribution1_ph->GetBinContent(i) - distribution2_ph->GetBinContent(i));    
+    }
+    TCanvas * c_h = new TCanvas{};
+    value_h->Draw();
+
+} 
 
 #endif
 

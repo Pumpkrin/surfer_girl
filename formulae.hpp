@@ -2,6 +2,7 @@
 #define FORMULAE_HPP
 #include <utility>
 #include <fstream>
+#include <array>
 
 #include "fit_tools.hpp"
 

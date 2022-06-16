@@ -242,5 +242,18 @@ struct sigma_finder {
 };
 
 
+struct pile_up_finder {
+    using output_t = pile_up;
+    output_t operator()( linked_waveform const& input_p ) const {
+        double baseline{0}; 
+        for( auto i{0}; i < 64 ; ++i ) { baseline += input_p.data.GetBinContent( i +1 ); }
+        baseline /= 64;
+        double result{0};
+        for( auto i{1}; i < input_p.data.GetNbinsX()+1; ++i ){ result += input_p.data.GetBinCenter( i ) * (input_p.data.GetBinContent(i) - baseline); }
+        result /= input_p.data.GetNbinsX();
+        result *= 1e-9;
+        return {result};
+    }
+};
 } //namespace sf_g
 #endif

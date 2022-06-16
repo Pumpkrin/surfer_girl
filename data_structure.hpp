@@ -69,11 +69,17 @@ struct rise_time { double rise_time; void value() const { std::cout << rise_time
 struct fall_time { double fall_time; void value() const { std::cout << fall_time << '\n';} };    
 struct mean { double mean; void value() const { std::cout << mean << '\n';} };    
 struct sigma { double sigma; void value() const { std::cout << sigma << '\n';} };    
+struct pile_up { double pile_up; void value() const { std::cout << pile_up << '\n';} };    
 
 
 struct gamma_response{
     double gamma_energy;
     double deposited_energy;
+};
+struct response{
+    double gamma_energy;
+    double deposited_energy;
+    double total_deposited_energy;
 };
 
 }

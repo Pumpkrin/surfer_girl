@@ -82,6 +82,16 @@ struct sigma {
     }
 };
 template<std::size_t I> constexpr const char sigma<I>::name[];
+template<std::size_t Index>
+struct pile_up { 
+    constexpr static const char name[] = "p"; 
+    constexpr static std::size_t index = Index;
+    template<class Input>
+    constexpr double retrieve_value(std::vector<Input*> const& input_pch){ 
+        return input_pch[Index]->pile_up;
+    }
+};
+template<std::size_t I> constexpr const char pile_up<I>::name[];
 } //namespace tag
 
 struct exclude_outer{

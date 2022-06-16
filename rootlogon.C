@@ -5,4 +5,5 @@
    gROOT->LoadMacro("@path_to_macro@formulae.hpp");
    gROOT->LoadMacro("@path_to_macro@tools.hpp");
    gROOT->LoadMacro("@path_to_macro@process_spectra.hpp");
+   gROOT->LoadMacro("@path_to_macro@data_structure.hpp");
 }

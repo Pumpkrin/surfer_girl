@@ -2,6 +2,7 @@
 extract_file(){
     file="$1"
     filename="${1##*/}"
+    echo $filename
     directory="temp"
     if [ ! -d "${directory}" ]; then
         mkdir "${directory}"
@@ -14,7 +15,8 @@ extract_file(){
     regex="Run_([^_]+_)+Data"
     if [[ $file =~ $regex ]]; then
         temp="${BASH_REMATCH%_Data}"
-        name="${temp#Run_}.root"
+        name="${temp##*/}"
+        name="${name#Run_}.root"
         echo "processing: ${name}"
         echo "surfer_girl: "
         ./surfer_girl -in ${file} -out "${directory}/waveform/${name}"
